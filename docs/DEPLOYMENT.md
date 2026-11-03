@@ -161,9 +161,15 @@ Notes:
 
 ### Render (recommended Shape B — exact settings)
 
-`render.yaml` in the repository root is a Blueprint with these values already filled in. In the Render
-dashboard: **New → Blueprint → select this repo → Apply**. Render prompts for every `sync: false` secret
-once; it stores them encrypted and never shows them again.
+Two Blueprints are in the repository root:
+
+- **`render.yaml` — free instance + hosted Postgres.** No card. This is the default; the full walkthrough
+  is [DEPLOYMENT-FREE.md](./DEPLOYMENT-FREE.md).
+- **`render-paid.yaml` — Starter instance + SQLite on a persistent disk.** Requires a card (disks are paid).
+  The table below describes this variant.
+
+In the Render dashboard: **New → Blueprint → select this repo → Apply**. Render prompts for every
+`sync: false` secret once; it stores them encrypted and never shows them again.
 
 | Render field | Exact value | Why |
 | --- | --- | --- |

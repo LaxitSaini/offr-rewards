@@ -152,10 +152,13 @@ async function createSqliteAdapter(file: string): Promise<Adapter> {
 async function createPostgresAdapter(connectionString: string): Promise<Adapter> {
   const postgres = (await import("postgres")).default;
   const sql = postgres(connectionString, {
-    max: Number(process.env.PG_POOL_MAX ?? 5),
-    idle_timeout: 20,
+    // Serverless: one connection per invocation (env.pgPoolMax = 1) so a free
+    // Postgres tier's connection limit is not exhausted by cold-start fan-out.
+    max: env.pgPoolMax,
+    idle_timeout: env.serverless ? 5 : 20,
+    max_lifetime: env.serverless ? 60 : null,
     connect_timeout: 15,
-    prepare: false, // safe behind PgBouncer / serverless poolers
+    prepare: false, // safe behind PgBouncer / serverless poolers (Neon -pooler)
     onnotice: () => {},
   });
 
@@ -203,8 +206,21 @@ async function getAdapter(): Promise<Adapter> {
       if (env.databaseUrl && /^postgres(ql)?:\/\//.test(env.databaseUrl)) {
         return createPostgresAdapter(env.databaseUrl);
       }
+      if (env.serverless) {
+        // Refuse loudly. A SQLite file on a read-only/ephemeral filesystem would
+        // accept writes and lose them at the next cold start.
+        throw new Error(
+          "This deployment is serverless and has no DATABASE_URL. SQLite file storage does not persist on serverless hosts. " +
+            "Create a free Postgres database (Neon/Supabase) and set DATABASE_URL. See docs/DEPLOYMENT-FREE.md.",
+        );
+      }
       return createSqliteAdapter(env.sqlitePath);
-    })();
+    })().catch((err: unknown) => {
+      // Do not cache a failed boot: the next request should retry (a wrong
+      // DATABASE_URL fixed in the dashboard must not require a redeploy).
+      globalForDb.__offrDb = undefined;
+      throw err;
+    });
   }
   return globalForDb.__offrDb;
 }

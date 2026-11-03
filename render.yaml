@@ -1,69 +1,54 @@
-# OFFR Rewards — Render Blueprint.
+# OFFR Rewards — Render Blueprint, CARD-FREE path (no disk, Postgres).
 #
-# One web service running Next.js in front of SQLite on a persistent disk.
-# Every value below is taken from package.json, src/lib/env.ts and
-# docs/DEPLOYMENT.md — nothing here is invented.
+# Why this shape: a persistent disk is a paid Render feature, so the disk-based
+# blueprint (see render-paid.yaml) asks for a card. This blueprint keeps the web
+# service on Render's free instance and stores data in an external Postgres
+# database (Neon/Supabase free tier), which needs no card either.
 #
-# Usage: Render Dashboard → New → Blueprint → pick this repo → apply.
-# Secrets are left as `sync: false`, which makes Render prompt for them once and
-# store them encrypted. Never put a secret value in this file or in git.
+# Settings below are taken from package.json, src/lib/env.ts and the migration
+# code — nothing is invented.
+#
+# Usage: Render Dashboard → New → Blueprint → pick this repo → Apply, then paste
+# the DATABASE_URL from your Neon project when Render prompts for it.
 
 services:
   - type: web
     name: offr-rewards
     runtime: node
-    plan: starter # a persistent disk requires a paid instance type
-    region: oregon
+    plan: free # 512 MB / 0.1 CPU, spins down after 15 min idle, ~1 min cold start
+    region: oregon # keep it in the same region as your Neon project
     branch: main
-    autoDeploy: false # deploy deliberately; flip on after the first green smoke test
-    # --include=optional : better-sqlite3 is an optional dependency; without it npm
-    #                      silently skips the driver and every page returns 500.
-    # --ignore-scripts   : better-sqlite3 13 ships a prebuilt binary for this platform
-    #                      and its `node-gyp rebuild` script fails wherever the Node
-    #                      headers are unreachable — npm then DROPS the optional
-    #                      package without an error. Verified: this combination yields
-    #                      a working driver from a clean checkout.
-    # node -e require(...) : hard stop if the driver is missing, instead of shipping a
-    #                      deploy whose every page 500s.
-    buildCommand: npm ci --include=optional --ignore-scripts && node -e "require('better-sqlite3')" && npm run build
-    # `next start` binds 0.0.0.0:$PORT and sets NODE_ENV=production itself.
-    # Migrations apply automatically on first DB access (src/lib/db/index.ts).
+    autoDeploy: false # deploy deliberately until the first smoke test is green
+    buildCommand: npm ci --include=optional --ignore-scripts && npm run build
+    # Migrations run automatically on first database access (src/lib/db/index.ts),
+    # so no release command is required.
     startCommand: npm start
     healthCheckPath: /api/health
 
-    disk:
-      name: offr-data
-      mountPath: /var/data # must match SQLITE_PATH below
-      sizeGB: 1
-
     envVars:
-      # ── runtime ────────────────────────────────────────────────────────────
+      # ── database: the only required secret ────────────────────────────────
+      - key: DATABASE_URL
+        sync: false # Neon/Supabase connection string (pooled host recommended)
+      - key: PG_POOL_MAX
+        value: 5 # long-lived process, so a small pool is fine
+
+      # ── runtime ───────────────────────────────────────────────────────────
       - key: NODE_VERSION
         value: 22.14.0
-      - key: SQLITE_PATH
-        value: /var/data/offr.db
-      - key: DATABASE_URL # leave unset to use SQLite; set to a Postgres URL only if switching engines
-        sync: false
-
-      # ── public URL (cookies are Secure-only in production) ────────────────
       - key: NEXT_PUBLIC_APP_URL
-        sync: false # e.g. https://offr.world
-
-      # ── Base mainnet, read-only ───────────────────────────────────────────
+        sync: false # e.g. https://offr-rewards.onrender.com
       - key: CHAIN_MODE
         value: live
       - key: BASE_RPC_URL
-        sync: false # public https://mainnet.base.org works, a paid RPC is faster and more reliable
+        sync: false # blank = https://mainnet.base.org
       - key: TOKEN_DECIMALS
         sync: false # leave EMPTY so decimals are read from the contract
-
-      # ── bootstrap admin (rotate, then delete both) ────────────────────────
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
-        sync: false
+        sync: false # delete after the first login + password rotation
 
-      # ── optional integrations: unset = documented degraded mode ───────────
+      # ── optional integrations: blank = documented manual-review fallback ──
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_BOT_USERNAME
@@ -71,13 +56,10 @@ services:
       - key: TELEGRAM_CHAT_ID
         sync: false
       - key: TELEGRAM_WEBHOOK_SECRET
-        generateValue: true # Render generates a long random secret; pass the same value to setWebhook
+        generateValue: true
       - key: X_BEARER_TOKEN
         sync: false
       - key: TEAM_WALLET_ADDRESS
         sync: false
-
-      # ── reverse proxy / rate limiting ─────────────────────────────────────
-      # RENDER is set by the platform, so TRUST_PROXY auto-enables (src/lib/env.ts).
       - key: ADMIN_SESSION_HOURS
         value: 8

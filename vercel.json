@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "installCommand": "npm ci --include=optional --ignore-scripts",
+  "buildCommand": "npm run build",
+  "functions": {
+    "src/app/api/**/route.ts": {
+      "maxDuration": 60
+    },
+    "src/middleware.ts": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, max-age=0" }]
+    }
+  ]
+}

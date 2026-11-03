@@ -7,25 +7,49 @@ The long version lives in [DEPLOYMENT.md](./DEPLOYMENT.md). This page is the sho
 
 ---
 
-## A. Deploy (about 10 minutes, once)
+## A. Deploy free, without a card (about 20 minutes, once)
 
-1. **github.com → your repository → `render.yaml`** — this file already contains the whole service
-   definition (build command, start command, 1 GB disk at `/var/data`, `SQLITE_PATH=/var/data/offr.db`,
-   health check `/api/health`). You do not need to invent any of it.
-2. **render.com → sign in with GitHub → New → Blueprint → pick this repository → Apply.**
-3. Render asks for the values marked secret. Paste them **in the Render screen**, not here:
-   - `NEXT_PUBLIC_APP_URL` → `https://offr.world` (or the Render URL it gives you, until DNS is pointed)
+You need two free accounts: **Neon** (database) and either **Render** or **Vercel** (the website).
+None of them requires a credit card. Full details: [DEPLOYMENT-FREE.md](./DEPLOYMENT-FREE.md).
+
+### Step 1 — the database (Neon, ~5 min)
+
+1. Open **neon.tech** → sign in with Google/GitHub → **Create project**.
+2. Choose the region closest to your users and remember it.
+3. Press **Connect** and copy the **pooled** connection string (its address contains `-pooler`).
+   That string is a password. Keep it on screen for step 2; never post it anywhere.
+
+### Step 2 — the website
+
+**Option A — Render (recommended for a public campaign: their terms allow commercial use).**
+
+1. **render.com** → sign in with GitHub → **New → Blueprint** → pick this repository → **Apply**.
+2. The repo's `render.yaml` is already the **free, no-disk** definition, so Render will not ask for a card.
+3. Fill in the values it prompts for:
+   - `DATABASE_URL` → paste the Neon pooled string from step 1
+   - `NEXT_PUBLIC_APP_URL` → `https://<name>.onrender.com` (update it later if you add offr.world)
    - `ADMIN_EMAIL` → your team address · `ADMIN_PASSWORD` → a long unique password (18+ characters)
-   - `BASE_RPC_URL` → optional; leave blank to use the public Base endpoint
-   - `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `X_BEARER_TOKEN`, `TEAM_WALLET_ADDRESS` → only if you have
-     them. Blank is supported: those tasks fall back to manual review and the UI says so.
-   - Leave `TOKEN_DECIMALS` **empty** (decimals are read from the contract) and `CHAIN_MODE=live`.
-4. Wait for the deploy to say **Live**. Open `https://<your-url>/api/health`. It must show
-   `"ok":true`, `"database":{"engine":"sqlite"}`, `"chain":{"mode":"live"}`.
-   `"metadataLive":false` means the RPC is unreachable — fix that before inviting anyone.
-5. **Set a custom domain** (Render → Settings → Custom Domain → `offr.world`) and put the CNAME/DNS record
-   Render shows you into your domain provider. Then update `NEXT_PUBLIC_APP_URL` to `https://offr.world`
-   and redeploy. Cookies are `Secure`-only in production, so do not run the campaign on plain `http://`.
+   - `BASE_RPC_URL`, Telegram, X, `TEAM_WALLET_ADDRESS` → leave blank if you do not have them; those tasks
+     then go to manual review, and the UI says so
+   - Leave `TOKEN_DECIMALS` **empty** (decimals are read from the contract)
+4. Press **Create** and wait for **Live** (a few minutes). The free instance sleeps after 15 quiet minutes;
+   the first visitor afterwards waits about a minute.
+
+**Option B — Vercel (faster, but its free Hobby plan is for non-commercial projects only).**
+Import the repo at vercel.com, add the same environment variables (`PG_POOL_MAX=1`), deploy.
+`vercel.json` already has the right build and function settings.
+
+### Step 3 — prove it is healthy
+
+Open `https://<your-url>/api/health` and check:
+
+- `"ok": true`
+- `"database": { "ok": true, "engine": "postgres" }`
+- `"chain": { "mode": "live", "metadataLive": true }`
+
+If `metadataLive` is `false`, the Base RPC is unreachable: set `BASE_RPC_URL` to another provider's Base
+mainnet URL. If `ok` is `false`, the health response now tells you why (`database.error`) without exposing
+the password.
 
 ## B. First five minutes as admin
 
@@ -70,8 +94,9 @@ If any row fails, stop and do not open signup. Tell me which row and what you sa
 ## E. Every day during the campaign
 
 1. `/admin` → check the overview for failed verifications and pending items.
-2. Take a backup: Render Shell → `npm run db:backup` (it verifies the copy and keeps the last 14), then
-   download one copy off the host so a lost volume is not a lost campaign.
+2. Take a backup: on Postgres use `pg_dump "$DATABASE_URL" -Fc -f offr-$(date +%F).dump` (or Neon's
+   Branches → Restore window), and keep the file off the database account. `npm run db:backup` is for the
+   SQLite/paid variant only and will say so.
 3. Record payouts **after** you actually send the transfer, one by one, with the real hash. The app never
    moves tokens and never signs anything.
 
@@ -79,7 +104,10 @@ If any row fails, stop and do not open signup. Tell me which row and what you sa
 
 | Symptom | Do this |
 | --- | --- |
-| Pages 500 right after a deploy | The database driver is missing. Use the blueprint's build command exactly: `npm ci --include=optional --ignore-scripts && node -e "require('better-sqlite3')" && npm run build`. A plain `npm ci` silently drops the optional driver, and so does `--include=optional` *without* `--ignore-scripts` when the native rebuild fails. |
+| Pages 500 right after a deploy | Check `/api/health` first: it now returns `database.error`. Typical causes: `DATABASE_URL` missing/typo'd, or the app deployed without the blueprint's build command (`npm ci --include=optional --ignore-scripts && npm run build`). |
+| `/api/health` says `database.engine: "none"` | This is a serverless host with no `DATABASE_URL`. SQLite cannot persist there, so the app refuses to pretend. Add the Neon connection string. |
+| The site is slow on the first visit of the day | Render's free instance sleeps after 15 minutes idle. It wakes in about a minute. Post the link on X/Telegram a few minutes before you expect visitors. |
+| Database went quiet / queries pause | Neon's free tier scales to zero after ~5 minutes and has a monthly compute quota. Open the Neon dashboard to check the project state. |
 | `/api/health` returns 503 | The database is unreachable — check that the disk is mounted at `/var/data` and `SQLITE_PATH` matches. |
 | Everything works but balances fail | RPC is down or blocked. Set a different `BASE_RPC_URL`, or pin `TOKEN_DECIMALS` only if you know the real value. Do not guess it. |
 | Suspected abuse | `/admin/participants` → block the wallet; `/admin/payouts` → void a payout. Both are audited. |
