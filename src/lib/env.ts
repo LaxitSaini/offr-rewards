@@ -110,6 +110,13 @@ export const env = {
   appUrl: optional("NEXT_PUBLIC_APP_URL") ?? "http://localhost:3000",
 
   databaseUrl: optional("DATABASE_URL"),
+  /**
+   * Neon (and PgBouncer generally) expose two connection strings: the pooled one
+   * for application traffic and a direct one for schema changes. Migrations run
+   * over the direct URL when it is present — the Neon `neon-postgres` skill is
+   * explicit about this — and fall back to DATABASE_URL otherwise.
+   */
+  databaseUrlDirect: optional("DATABASE_URL_UNPOOLED") ?? optional("DATABASE_URL_DIRECT"),
   sqlitePath: optional("SQLITE_PATH") ?? "./data/offr.db",
   pgPoolMax: resolvePgPoolMax(optional("PG_POOL_MAX"), serverless),
 
@@ -161,6 +168,22 @@ if (isProd && env.adminPassword) {
     "[env] ADMIN_PASSWORD is still set in production. Rotate the admin password and remove it once the account exists; leaving it set allows re-provisioning if the admins table is ever emptied.",
   );
 }
+
+/**
+ * URL used for DDL only: the direct endpoint when the host provides a distinct
+ * one (Neon sets DATABASE_URL_UNPOOLED next to the pooled DATABASE_URL), else
+ * null so migrations fall back to the regular connection.
+ */
+export function parseMigrationUrl(
+  pooled?: string,
+  direct?: string,
+): string | null {
+  if (!pooled || !direct) return null;
+  if (direct.trim() === pooled.trim()) return null;
+  return direct.trim();
+}
+
+export const migrationUrl = parseMigrationUrl(env.databaseUrl, env.databaseUrlDirect);
 
 export const integrations = {
   telegramConfigured: Boolean(env.telegramBotToken && env.telegramChatId),

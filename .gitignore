@@ -18,3 +18,4 @@ data/backups/
 tsconfig.tsbuildinfo
 next-env.d.ts
 .vitest
+.neon
