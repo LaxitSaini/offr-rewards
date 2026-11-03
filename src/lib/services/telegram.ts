@@ -91,7 +91,7 @@ export async function verifyTelegramMembership(user: UserRow): Promise<TelegramC
   try {
     const result = await getChatMember(env.telegramChatId!, user.telegram_user_id);
     status = result.status;
-    member = isMemberStatus(result.status);
+    member = isMemberStatus(result.status, result.is_member);
     detail = member
       ? `Telegram membership confirmed (${result.status}).`
       : `Telegram reports status "${result.status}" — join ${env.telegramChatId} with the same account.`;
@@ -189,6 +189,16 @@ export async function pollTelegramLink(user: UserRow): Promise<PollResult> {
 }
 
 /** Shared by polling and the webhook route. Idempotent. */
+/** True when an update belongs to the configured campaign chat. */
+export function isCampaignChat(chat: { id: number; username?: string }): boolean {
+  const configured = env.telegramChatId;
+  if (!configured) return true;
+  if (configured.startsWith("@")) {
+    return chat.username?.toLowerCase() === configured.slice(1).toLowerCase();
+  }
+  return String(chat.id) === configured;
+}
+
 export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void> {
   const message = update.message;
   if (message?.text && message.from) {
@@ -200,6 +210,14 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
           "Welcome to OFFR Rewards. Open the campaign app, tap <b>Connect Telegram</b>, then press Start on the link it gives you.",
         );
       }
+      return;
+    }
+
+    if (message.chat.type !== "private") {
+      await sendMessage(
+        message.chat.id,
+        "For privacy, open the link the OFFR Rewards app gives you in a direct message with me.",
+      );
       return;
     }
 
@@ -226,15 +244,21 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
       return;
     }
 
+    // Claim the token atomically so a replay (or two simultaneous /start
+    // messages) cannot link twice.
+    const claimed = await execute(
+      `UPDATE telegram_links SET consumed_at = ?, telegram_user_id = ? WHERE token = ? AND consumed_at IS NULL`,
+      [ts, telegramUserId, token],
+    );
+    if (claimed.changes !== 1) {
+      await sendMessage(message.chat.id, "That link has expired. Generate a fresh one from the OFFR Rewards app.");
+      return;
+    }
+
     await execute(
       `UPDATE users SET telegram_user_id = ?, telegram_username = ?, telegram_linked_at = ? WHERE id = ?`,
       [telegramUserId, message.from.username ?? message.from.first_name ?? null, ts, link.user_id],
     );
-    await execute(`UPDATE telegram_links SET consumed_at = ?, telegram_user_id = ? WHERE token = ?`, [
-      ts,
-      telegramUserId,
-      token,
-    ]);
 
     const user = await getUserById(link.user_id);
     if (!user) return;
@@ -250,7 +274,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
   }
 
   const chatMember = update.chat_member;
-  if (chatMember?.new_chat_member?.user) {
+  if (chatMember?.new_chat_member?.user && isCampaignChat(chatMember.chat)) {
     const telegramUserId = String(chatMember.new_chat_member.user.id);
     const user = await queryOne<UserRow>(`SELECT * FROM users WHERE telegram_user_id = ?`, [telegramUserId]);
     if (!user) return;

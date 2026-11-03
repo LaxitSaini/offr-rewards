@@ -29,7 +29,7 @@ export function randomCode(length = 6): string {
   return out;
 }
 
-/** Case-insensitive constant-time string compare. */
+/** Constant-time byte comparison (returns false on length mismatch). */
 export function safeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
   const bufB = Buffer.from(b);

@@ -1,4 +1,5 @@
 import { query, queryOne } from "@/lib/db";
+import { integrations } from "@/lib/env";
 import type { CampaignSettings } from "@/lib/settings";
 import type { UserRow } from "@/lib/users";
 import { holdStatusFor, type HoldStatus } from "@/lib/services/holdings";
@@ -140,6 +141,18 @@ export async function buildTaskViews(args: {
         status = "available";
       }
       canSubmit = false;
+      if (!integrations.telegramConfigured) {
+        // Without bot credentials the API accepts a manual @username claim, so the
+        // UI must offer that path instead of a dead "connect" button.
+        canSubmit =
+          state.status !== "completed" &&
+          state.status !== "pending" &&
+          state.approvedCount < task.max_awards;
+        if (canSubmit) {
+          reason =
+            "Automatic Telegram checks are not enabled on this deployment — submit your @username for manual review.";
+        }
+      }
       if (!campaignLive) {
         canSubmit = false;
         reason = "Campaign is not live.";

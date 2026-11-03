@@ -105,8 +105,14 @@ export async function sendMessage(chatId: string | number, text: string): Promis
   }
 }
 
-export function isMemberStatus(status?: string): boolean {
-  return status === "creator" || status === "administrator" || status === "member";
+/**
+ * Telegram reports a member who has been muted/limited as "restricted" — they
+ * are still in the chat, so `is_member` decides.
+ */
+export function isMemberStatus(status?: string, isMember?: boolean): boolean {
+  if (status === "creator" || status === "administrator" || status === "member") return true;
+  if (status === "restricted") return isMember === true;
+  return false;
 }
 
 /** Parses `/start <token>` payloads into a link token. */

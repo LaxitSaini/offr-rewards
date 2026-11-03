@@ -17,7 +17,9 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://mainnet.base.org https://base-rpc.publicnode.com https://*.base.org wss://*.base.org",
+  // The browser never talks to an RPC directly (all chain reads are server-side),
+  // so external connect-src origins are unnecessary surface area.
+  "connect-src 'self'",
   `frame-ancestors ${allowEmbed ? "*" : "'none'"}`,
   "object-src 'none'",
   "base-uri 'self'",

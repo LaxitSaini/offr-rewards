@@ -170,17 +170,17 @@ export function TaskCard({
 
           {/* Actions */}
           <div className="mt-3.5 flex flex-wrap items-center gap-2">
-            {isTelegram && (
+            {isTelegram && telegramConfigured && (
               <TelegramConnect csrf={csrf} configured={telegramConfigured} linked={telegramLinked} />
             )}
 
-            {!isTelegram && !isHold && task.canSubmit && !open && (
+            {!(isTelegram && telegramConfigured) && !isHold && task.canSubmit && !open && (
               <button type="button" className="btn-secondary btn-sm" onClick={() => setOpen(true)}>
                 {task.status === "rejected" ? "Resubmit proof" : "Submit proof"}
               </button>
             )}
 
-            {!isTelegram && !isHold && task.status === "pending" && (
+            {!(isTelegram && telegramConfigured) && !isHold && task.status === "pending" && (
               <span className="text-[12px] text-white/35">Awaiting team review</span>
             )}
 

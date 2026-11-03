@@ -11,6 +11,8 @@ export const POST = route(async (req: Request) => {
   const { user, session } = await requireUser();
   await requireCsrf(session, req);
 
+  if (user.blocked) throw errors.forbidden("This wallet is restricted.");
+
   const rl = await rateLimit(`referral:${user.id}`, 6, 60 * 60 * 1000);
   if (!rl.ok) throw errors.tooMany(rl.retryAfterSec);
 

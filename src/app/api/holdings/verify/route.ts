@@ -14,6 +14,8 @@ export const POST = route(async (req: Request) => {
   const rl = await rateLimit(`hold:${user.id}`, 12, 60 * 60 * 1000);
   if (!rl.ok) throw errors.tooMany(rl.retryAfterSec, "Balance checks are limited to 12 per hour.");
 
+  if (user.blocked) throw errors.forbidden("This wallet is restricted. Contact the team on Telegram.");
+
   const settings = await getSettings();
   const outcome = await verifyHoldings(user, settings, "manual");
 

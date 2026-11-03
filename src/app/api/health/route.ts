@@ -41,7 +41,6 @@ export const GET = route(async () => {
       integrations: {
         telegram: integrations.telegramConfigured,
         x: integrations.xConfigured,
-        adminBootstrapConfigured: Boolean(env.adminEmail && env.adminPassword),
       },
       time: new Date().toISOString(),
     },

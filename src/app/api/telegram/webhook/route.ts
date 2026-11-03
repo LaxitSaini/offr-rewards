@@ -2,6 +2,7 @@ import { env } from "@/lib/env";
 import { ensureBoot } from "@/lib/bootstrap";
 import { json, route } from "@/lib/http";
 import { handleTelegramUpdate } from "@/lib/services/telegram";
+import { safeEqual } from "@/lib/utils";
 import type { TelegramUpdate } from "@/lib/integrations/telegram";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,7 @@ export const POST = route(async (req: Request) => {
     return json({ ok: false, error: "webhook_not_configured" }, 503);
   }
   const provided = req.headers.get("x-telegram-bot-api-secret-token");
-  if (provided !== env.telegramWebhookSecret) {
+  if (!provided || !safeEqual(provided, env.telegramWebhookSecret)) {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
   await ensureBoot();
