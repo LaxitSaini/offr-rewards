@@ -54,7 +54,15 @@ export function toPgPlaceholders(sql: string): string {
 }
 
 async function createSqliteAdapter(file: string): Promise<Adapter> {
-  const Database = (await import("better-sqlite3")).default;
+  // better-sqlite3 is an optional dependency: PostgreSQL deployments do not need
+  // the native module, so a failed native build must not break the install.
+  const mod = await import("better-sqlite3").catch(() => null);
+  if (!mod) {
+    throw new Error(
+      "SQLite driver (better-sqlite3) is not installed on this host. Set DATABASE_URL to a PostgreSQL connection string, or install the optional dependency.",
+    );
+  }
+  const Database = mod.default;
   if (file !== ":memory:") {
     fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
   }
