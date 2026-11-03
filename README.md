@@ -102,7 +102,9 @@ The first login attempt also bootstraps the admin from `ADMIN_EMAIL` + `ADMIN_PA
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | yes (bootstrap) | First admin provisioning. Rotate via `npm run admin:hash`. |
 | `ADMIN_SESSION_HOURS` | optional | Admin session TTL, default 8. |
 | `TEAM_WALLET_ADDRESS` | recommended | If set, only transfers **from** this wallet verify payout hashes. |
-| `TRUST_PROXY` | optional | `0` disables `X-Forwarded-For` trust. |
+| `TRUST_PROXY` | optional | `1` trusts `X-Forwarded-For` (auto-enabled on Vercel/Fly/Railway/Render), `0` forces it off. Unset elsewhere = header ignored. |
+| `RATE_LIMIT_DISABLED` | no | Test-only escape hatch; force-disabled when `NODE_ENV=production`. |
+| `TOKEN_DECIMALS` | optional | Skips the on-chain decimals read; only for a documented incident. |
 | `ALLOW_IFRAME_EMBED` | optional | `1` allows iframe embedding (sandbox previews only). |
 
 Never commit `.env.local`. `.env.example` documents every variable with no secrets.
@@ -152,7 +154,7 @@ Without these variables the Telegram task accepts a manual `@username` claim ins
 ## 6. Testing
 
 ```bash
-npm test              # 57 unit/integration tests (Vitest)
+npm test              # 79 unit/integration tests (Vitest, 9 files)
 npm run typecheck     # tsc --noEmit
 npm run build         # production build
 ```
@@ -160,6 +162,8 @@ npm run build         # production build
 End-to-end smoke test against a running server (creates wallets, signs, submits, reviews, pays):
 
 ```bash
+# The password below is a throwaway value for a local mock-mode server only —
+# never use it on a deployment that can reach Base mainnet.
 CHAIN_MODE=mock SQLITE_PATH=./data/e2e.db ADMIN_EMAIL=admin@offr.test \
 ADMIN_PASSWORD=e2e-admin-password-1 npm run dev
 
@@ -173,6 +177,8 @@ Coverage highlights:
 - Proof canonicalisation: X link variants collapse to one id, tracking params stripped.
 - Auth: scrypt hashing, wrong password, unknown account, lockout after 5 failures.
 - Database: migrations, idempotent seeding, one record per wallet, referral binding, ledger recomputation, unique Telegram link, duplicate proof rejection, approval/rejection/revocation.
+- Concurrency (added in the pre-merge audit): two simultaneous approvals credit points once, two simultaneous approvals credit a referral once, two simultaneous payouts cannot exceed the budget or the per-wallet cap, and a second pending claim for the same task is rejected by the engine.
+- PostgreSQL path: the real migrations, the `?`→`$n` placeholder conversion, the partial unique indexes and the atomic payout gate all execute against an in-process Postgres engine (`@electric-sql/pglite`).
 - E2E: wallet signature auth, CSRF enforcement, duplicate claims, cross-wallet proof reuse, admin auth, review queue, referral credit, payout caps, blocking, audit trail, rate limiting, SSR pages.
 
 Not executable in the build sandbox (no network egress to Base RPC, `api.telegram.org` or `api.x.com`):
