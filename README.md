@@ -167,10 +167,11 @@ npm run build         # production build
 End-to-end smoke test against a running server (creates wallets, signs, submits, reviews, pays):
 
 ```bash
-# The password below is a throwaway value for a local mock-mode server only —
-# never use it on a deployment that can reach Base mainnet.
+# Pass any LOCAL throwaway password; the harness defaults to a build-time fixture
+# that is only ever provisioned by a mock-mode dev server. Never reuse it on a
+# deployment that can reach Base mainnet. The harness refuses non-localhost hosts.
 CHAIN_MODE=mock SQLITE_PATH=./data/e2e.db ADMIN_EMAIL=admin@offr.test \
-ADMIN_PASSWORD=e2e-admin-password-1 npm run dev
+ADMIN_PASSWORD='<any-local-password>' npm run dev
 
 npx tsx scripts/e2e.ts    # 62 assertions, exits non-zero on failure
 ```

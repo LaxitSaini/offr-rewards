@@ -12,8 +12,23 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { execute } from "@/lib/db";
 
 const BASE = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+// Local fixtures only: a throwaway admin provisioned by a mock-mode dev server.
+// They are never valid on a deployment unless an operator deliberately sets the
+// same env values there, which the production boot warning warns about.
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "admin@offr.test";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "e2e-admin-password-1";
+
+// This harness creates wallets, submissions and payouts, and clears rate-limit
+// windows, so it must never be pointed at a real deployment by accident.
+const isLocal =
+  /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?$/i.test(BASE);
+if (!isLocal && process.env.E2E_ALLOW_REMOTE !== "1") {
+  console.error(
+    `\nRefusing to run against ${BASE}: this script mutates data and is local-only.\n` +
+      "Set E2E_ALLOW_REMOTE=1 only if you really mean to run it against that host.\n",
+  );
+  process.exit(2);
+}
 
 let passed = 0;
 let failed = 0;

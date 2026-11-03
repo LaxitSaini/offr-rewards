@@ -59,7 +59,11 @@
 - A payout is only `verified` when the Base receipt contains an OFFR `Transfer` to that wallet whose summed
   value covers the recorded amount (and matches `TEAM_WALLET_ADDRESS` when configured). Unknown hashes,
   reverted transactions, wrong recipients and short transfers are all marked `failed`.
-- Nothing transfers tokens automatically. The app never holds keys.
+- Nothing transfers tokens automatically. The app never holds keys, and there is **no signing or
+  transfer code path anywhere in `src/`** — the chain client is read-only (`getChainId`, `getCode`,
+  `readContract`, `getBlockNumber`, `getTransactionReceipt`, `verifyMessage`). A payout row can only
+  become `verified` through an authenticated admin request, and the transfer itself is sent by a human
+  from the team wallet.
 
 ## Web hardening
 

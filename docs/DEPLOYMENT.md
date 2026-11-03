@@ -4,8 +4,24 @@ The app is a standard Next.js 15 application with one Node process. Two supporte
 
 | Shape | Database | Best for |
 | --- | --- | --- |
-| A. Vercel (or any serverless host) + managed Postgres | `DATABASE_URL=postgresql://…` | Fastest setup, free tiers (Neon/Supabase) |
-| B. Railway / Render / Fly / small VM with a volume | `SQLITE_PATH=/data/offr.db` | Cheapest for a 10–20 day campaign, no external DB |
+| A. Vercel (or any serverless host) + managed Postgres | `DATABASE_URL=postgresql://…` | Fastest setup, free tiers (Neon/Supabase), no server to babysit |
+| B. Railway / Render / Fly / small VM with a volume | `SQLITE_PATH=/data/offr.db` | Cheapest for a 10–20 day campaign, single instance, no external DB |
+
+### Which shape should you pick?
+
+**Recommended for the first launch: Shape B (Railway/Render/Fly + SQLite on a volume).**
+It is the path whose engine is actually covered by the test evidence: the 80 unit/integration tests and
+the 62-assertion HTTP suite all run against SQLite, so a launch on Shape B has no unexercised storage
+layer. It is also the cheapest, and a 10–20 day campaign on one instance fits it comfortably.
+
+**Shape A (Vercel + Neon) is fully implemented and is the better long-term choice** if you need
+serverless resilience, automatic scaling or managed backups. The caveat is honest: the Postgres SQL is
+verified against an in-process Postgres engine (`tests/postgres-compat.test.ts` — migrations, `?`→`$n`
+placeholders, partial unique indexes, the atomic payout gate), but **no hosted Postgres, connection
+pooler or TLS path has been exercised here**. If you choose Shape A, do one supervised deploy and smoke
+test (section 6) before the campaign opens, and keep `PG_POOL_MAX` modest behind a pooler.
+
+Either way the schema, seed data and application behaviour are identical.
 
 Everything below can be done from an Android phone in a mobile browser. You do **not** need a laptop,
 a terminal emulator or a desktop wallet to deploy — only to *test* when you want CLI convenience
@@ -14,6 +30,11 @@ a terminal emulator or a desktop wallet to deploy — only to *test* when you wa
 ---
 
 ## 0. Deploy from an Android phone (browser only)
+
+This walkthrough deploys **Shape A** (Vercel + Neon) because it is the one that needs no server
+administration. **Shape B** — the recommended first launch — is the same idea on Railway/Render: import
+the repo, attach a volume mounted at `/data`, set `SQLITE_PATH=/data/offr.db`, and use the env checklist
+in section 2 unchanged (skip `DATABASE_URL`). Either way, finish with section 6's verification.
 
 You need three free accounts: **GitHub**, **Vercel**, **Neon** (Postgres). Use Chrome/Firefox on the
 phone; all three dashboards are usable at phone width, and the "desktop site" toggle helps for
