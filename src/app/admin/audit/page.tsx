@@ -52,8 +52,8 @@ export default function AdminAuditPage() {
     <div className="space-y-4">
       <div>
         <p className="kicker">Accountability</p>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">Audit log</h1>
-        <p className="mt-1 text-[12px] text-white/40">
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">Audit log</h2>
+        <p className="mt-1 text-[12px] text-white/60">
           Append-only record of admin and system actions. {total} entries.
         </p>
       </div>
@@ -67,7 +67,7 @@ export default function AdminAuditPage() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="mono text-[12.5px] text-white/80">{entry.action}</p>
-                <p className="mt-0.5 text-[10.5px] text-white/35">
+                <p className="mt-0.5 text-[11.5px] text-white/60">
                   {entry.actor_type}
                   {entry.actor_email ? ` · ${entry.actor_email}` : ""}
                   {entry.actor_wallet ? ` · ${entry.actor_wallet.slice(0, 10)}…` : ""}
@@ -77,21 +77,21 @@ export default function AdminAuditPage() {
                 </p>
                 {entry.meta && (
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-[10.5px] text-white/25 hover:text-white/50">
+                    <summary className="cursor-pointer text-[11.5px] text-white/60 hover:text-white/70">
                       metadata
                     </summary>
-                    <pre className="mt-1 max-h-40 overflow-auto rounded-md border border-white/[0.06] bg-ink-900 p-2 text-[10px] text-white/40">
+                    <pre className="mt-1 max-h-40 overflow-auto rounded-md border border-white/[0.06] bg-ink-900 p-2 text-[11px] text-white/60">
                       {entry.meta}
                     </pre>
                   </details>
                 )}
               </div>
-              <span className="shrink-0 text-[10px] text-white/25">{formatDate(entry.created_at)}</span>
+              <span className="shrink-0 text-[11px] text-white/60">{formatDate(entry.created_at)}</span>
             </div>
           </div>
         ))}
         {!loading && entries.length === 0 && (
-          <p className="px-4 py-10 text-center text-sm text-white/40">No audit entries yet.</p>
+          <p className="px-4 py-10 text-center text-sm text-white/60">No audit entries yet.</p>
         )}
       </div>
 
@@ -104,7 +104,7 @@ export default function AdminAuditPage() {
         >
           Previous
         </button>
-        <span className="text-[11px] text-white/30">Page {page}</span>
+        <span className="text-[11px] text-white/60">Page {page}</span>
         <button
           type="button"
           className="btn-secondary btn-sm"

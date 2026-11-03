@@ -26,10 +26,26 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+/**
+ * Accessibility: every route renders exactly one `<main id="main">`, so this
+ * layout only owns the skip link.
+ *
+ * Do NOT add `src/app/loading.tsx`: a root loading boundary makes Next stream the
+ * shell with HTTP 200 before auth redirects resolve, which silently turns the
+ * `/admin` → `/admin-login` 307 into a 200. `scripts/e2e.ts` asserts that every
+ * admin route answers with a real 3xx, and it caught exactly that regression.
+ * Loading states live inside the client components that own the data instead.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-dvh">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-lime focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-ink-950"
+        >
+          Skip to content
+        </a>
         <WalletProvider>{children}</WalletProvider>
       </body>
     </html>

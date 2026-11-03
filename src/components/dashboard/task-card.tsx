@@ -106,7 +106,7 @@ export function TaskCard({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="text-[15px] font-semibold leading-snug">{task.title}</h3>
-              <p className="mt-1 text-[13px] leading-relaxed text-white/45">{task.description}</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-white/65">{task.description}</p>
             </div>
             <div className="shrink-0 text-right">
               <p className="whitespace-nowrap text-sm font-bold text-lime">+{task.points}</p>
@@ -117,7 +117,7 @@ export function TaskCard({
           </div>
 
           {task.instructions && (
-            <p className="mt-2.5 rounded-lg border border-white/[0.06] bg-ink-900/50 px-3 py-2 text-[12px] leading-relaxed text-white/40">
+            <p className="mt-2.5 rounded-lg border border-white/[0.06] bg-ink-900/50 px-3 py-2 text-[12px] leading-relaxed text-white/60">
               {task.instructions}
             </p>
           )}
@@ -125,7 +125,7 @@ export function TaskCard({
           {isHold && task.hold && (
             <div className="mt-3 rounded-xl border border-white/[0.07] bg-ink-900/60 p-3">
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-white/45">Verified holding days</span>
+                <span className="text-white/65">Verified holding days</span>
                 <span className="font-semibold tabular-nums text-white/80">
                   {task.hold.holdDays} / {task.hold.requiredDays}
                 </span>
@@ -133,7 +133,7 @@ export function TaskCard({
               <div className="mt-2">
                 <Progress value={task.hold.progressPct} />
               </div>
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-white/35">
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-white/60">
                 <span>
                   Last balance: {task.hold.balanceOffr} OFFR
                   {task.hold.qualifies ? " · above minimum" : " · below minimum"}
@@ -151,21 +151,21 @@ export function TaskCard({
           )}
 
           {task.latestSubmission && (
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-white/35">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-white/60">
               <span>Submitted {formatDate(task.latestSubmission.created_at)}</span>
-              <span className="text-white/20">·</span>
+              <span className="text-white/60">·</span>
               <StatusBadge status={task.latestSubmission.verification_state} />
               {task.latestSubmission.verification_detail && (
-                <span className="w-full text-white/30">{task.latestSubmission.verification_detail}</span>
+                <span className="w-full text-white/60">{task.latestSubmission.verification_detail}</span>
               )}
               {task.latestSubmission.review_note && (
-                <span className="w-full text-white/45">Reviewer: {task.latestSubmission.review_note}</span>
+                <span className="w-full text-white/65">Reviewer: {task.latestSubmission.review_note}</span>
               )}
             </div>
           )}
 
           {task.reason && (
-            <p className="mt-2 text-[12px] leading-relaxed text-white/40">{task.reason}</p>
+            <p className="mt-2 text-[12px] leading-relaxed text-white/60">{task.reason}</p>
           )}
 
           {/* Actions */}
@@ -181,7 +181,7 @@ export function TaskCard({
             )}
 
             {!(isTelegram && telegramConfigured) && !isHold && task.status === "pending" && (
-              <span className="text-[12px] text-white/35">Awaiting team review</span>
+              <span className="text-[12px] text-white/60">Awaiting team review</span>
             )}
 
             {task.status === "completed" && (
@@ -273,7 +273,7 @@ export function TaskCard({
                   Cancel
                 </button>
               </div>
-              <p className="text-[11px] text-white/30">
+              <p className="text-[11px] text-white/60">
                 Your proof is stored with a hash so the exact same link cannot be submitted twice.
               </p>
             </div>

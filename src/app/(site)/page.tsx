@@ -74,7 +74,7 @@ export default async function LandingPage() {
                 </a>
               </div>
 
-              <div className="mt-6 flex flex-wrap items-center gap-2 text-[11px] text-white/35">
+              <div className="mt-6 flex flex-wrap items-center gap-2 text-[11px] text-white/60">
                 <span className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5">
                   No transaction required
                 </span>
@@ -94,30 +94,30 @@ export default async function LandingPage() {
                   <p className="kicker">Season 1</p>
                   <h2 className="mt-1 text-lg font-semibold">$OFFR campaign</h2>
                 </div>
-                <span className="rounded-lg border border-white/10 bg-ink-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                <span className="rounded-lg border border-white/10 bg-ink-900 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/65">
                   Base
                 </span>
               </div>
 
               <dl className="mt-4 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
-                  <dt className="text-white/40">Runs</dt>
+                  <dt className="text-white/60">Runs</dt>
                   <dd className="text-right text-[13px] text-white/75">
                     {formatDate(stats.startsAt)} → {formatDate(stats.endsAt)}
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-white/40">Reward pool cap</dt>
+                  <dt className="text-white/60">Reward pool cap</dt>
                   <dd className="font-semibold tabular-nums text-lime">{stats.budgetOffr} OFFR</dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-white/40">Verified payouts</dt>
+                  <dt className="text-white/60">Verified payouts</dt>
                   <dd className="tabular-nums text-white/75">
                     {stats.rewardsPaidOffr} OFFR · {stats.verifiedPayouts} tx
                   </dd>
                 </div>
                 <div className="flex items-center justify-between">
-                  <dt className="text-white/40">Task catalogue</dt>
+                  <dt className="text-white/60">Task catalogue</dt>
                   <dd className="tabular-nums text-white/75">{stats.activeTasks} tasks</dd>
                 </div>
               </dl>
@@ -126,7 +126,7 @@ export default async function LandingPage() {
 
               <div className="rounded-xl border border-white/[0.07] bg-ink-900/70 p-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/30">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">
                     Token contract
                   </p>
                   <CopyButton value={OFFR.tokenAddress} label="Copy" />
@@ -143,7 +143,7 @@ export default async function LandingPage() {
 
               <div className="mt-4">
                 <ConnectButton full label="Connect wallet to start" />
-                <p className="mt-2 text-center text-[11px] text-white/30">
+                <p className="mt-2 text-center text-[11px] text-white/60">
                   Sign a message to prove wallet ownership. Free, no gas.
                 </p>
               </div>
@@ -159,7 +159,7 @@ export default async function LandingPage() {
               { label: "Active tasks", value: String(stats.activeTasks) },
             ].map((item) => (
               <div key={item.label} className="stat">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/30">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/60">
                   {item.label}
                 </p>
                 <p className="stat-value">{item.value}</p>
@@ -193,7 +193,7 @@ export default async function LandingPage() {
             >
               <div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                  <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-white/65">
                     {TYPE_LABEL[task.type] ?? "Task"}
                   </span>
                   <span className="whitespace-nowrap rounded-md bg-lime/10 px-2 py-1 text-[11px] font-bold text-lime">
@@ -201,13 +201,13 @@ export default async function LandingPage() {
                   </span>
                 </div>
                 <h3 className="mt-3 text-[15px] font-semibold leading-snug">{task.title}</h3>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-white/45">{task.description}</p>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-white/65">{task.description}</p>
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3">
-                <span className="text-[11px] text-white/35">
+                <span className="text-[11px] text-white/60">
                   {VERIFY_LABEL[task.auto_verify] ?? "Team reviews"}
                 </span>
-                <span className="text-[11px] text-white/25">
+                <span className="text-[11px] text-white/60">
                   {task.max_awards > 1 ? `Up to ${task.max_awards}×` : "Once per wallet"}
                 </span>
               </div>
@@ -241,7 +241,7 @@ export default async function LandingPage() {
             <div key={item.step} className="card p-5">
               <span className="mono text-xs text-lime/70">{item.step}</span>
               <h3 className="mt-2 text-[15px] font-semibold">{item.title}</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-white/45">{item.body}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-white/65">{item.body}</p>
             </div>
           ))}
         </div>
@@ -255,13 +255,13 @@ export default async function LandingPage() {
               <p className="kicker">Standings</p>
               <h2 className="mt-1 text-[15px] font-semibold">Top contributors</h2>
             </div>
-            <Link href="/leaderboard" className="text-[12px] font-medium text-white/45 hover:text-lime">
+            <Link href="/leaderboard" className="text-[12px] font-medium text-white/65 hover:text-lime">
               Full leaderboard →
             </Link>
           </div>
           <div className="px-5 py-2">
             {top.length === 0 && (
-              <p className="py-8 text-center text-sm text-white/35">
+              <p className="py-8 text-center text-sm text-white/60">
                 No approved contributions yet. The first approved task takes rank 1.
               </p>
             )}
@@ -270,14 +270,14 @@ export default async function LandingPage() {
                 <div className="flex min-w-0 items-center gap-3">
                   <span
                     className={`mono w-6 text-center text-[12px] ${
-                      entry.rank === 1 ? "text-lime" : "text-white/35"
+                      entry.rank === 1 ? "text-lime" : "text-white/60"
                     }`}
                   >
                     {String(entry.rank).padStart(2, "0")}
                   </span>
                   <span className="mono truncate text-white/70">{entry.wallet}</span>
                   {entry.xUsername && (
-                    <span className="hidden text-[11px] text-white/30 sm:inline">@{entry.xUsername}</span>
+                    <span className="hidden text-[11px] text-white/60 sm:inline">@{entry.xUsername}</span>
                   )}
                 </div>
                 <span className="text-sm font-semibold tabular-nums text-white/80">{entry.points}</span>
@@ -289,7 +289,7 @@ export default async function LandingPage() {
         <div className="card p-5">
           <p className="kicker">Straight talk</p>
           <h2 className="mt-1 text-[15px] font-semibold">What this campaign is — and isn&apos;t</h2>
-          <ul className="mt-3 space-y-2.5 text-[13px] leading-relaxed text-white/50">
+          <ul className="mt-3 space-y-2.5 text-[13px] leading-relaxed text-white/70">
             <li className="flex gap-2">
               <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-lime" />
               Points reflect reviewed contributions. They are not tokens and carry no guaranteed value.

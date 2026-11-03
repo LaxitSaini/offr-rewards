@@ -24,6 +24,25 @@ body {
   min-height: 100dvh;
 }
 
+/* Keyboard focus is always visible, including on dark surfaces. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #b8ff3c;
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* Respect the OS "reduce motion" setting. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 ::selection {
   background: rgba(184, 255, 60, 0.3);
   color: #fff;
@@ -101,16 +120,21 @@ body {
   }
 
   .btn-sm {
-    @apply px-3 py-1.5 text-[13px];
+    /* 44px minimum touch target on phones; compact from sm upwards. */
+    @apply min-h-11 px-3 py-2 text-[13px] sm:min-h-0 sm:py-1.5;
+  }
+
+  .tap {
+    @apply inline-flex min-h-11 items-center sm:min-h-0;
   }
 
   .input {
     @apply w-full rounded-xl border border-white/10 bg-ink-900/80 px-3.5 py-2.5 text-sm text-white
-      placeholder:text-white/30 focus:border-lime/50 focus:outline-none focus:ring-2 focus:ring-lime/15;
+      placeholder:text-white/60 focus:border-lime/50 focus:outline-none focus:ring-2 focus:ring-lime/15;
   }
 
   .label {
-    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45;
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-white/65;
   }
 
   .badge {
@@ -157,6 +181,13 @@ body {
 
   .glass-nav {
     @apply border-b border-white/[0.06] bg-ink-950/80 backdrop-blur-xl;
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* Long wallet addresses and transaction hashes must never force a layout
+     wider than the phone screen. */
+  .hash {
+    @apply break-all font-mono text-[12px] leading-relaxed tracking-tight tabular-nums;
   }
 }
 
@@ -180,4 +211,15 @@ body {
 
 .table-wrap {
   @apply -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0;
+}
+
+/* Bottom safe area for sticky bars and fixed footers on notched phones. */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Horizontal scroll containers should not trap vertical scrolling on touch. */
+.table-wrap {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }

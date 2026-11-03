@@ -61,7 +61,7 @@ export function ConnectButton({
             />
             <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-ink-800 shadow-2xl">
               <div className="border-b border-white/[0.06] px-3.5 py-3">
-                <p className="text-[11px] uppercase tracking-wider text-white/40">Connected wallet</p>
+                <p className="text-[11px] uppercase tracking-wider text-white/60">Connected wallet</p>
                 <p className="mono mt-1 text-white/80">{shortAddress(user.wallet, 6)}</p>
               </div>
               <Link
@@ -135,7 +135,7 @@ export function ConnectButton({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-white/40 hover:bg-white/[0.06] hover:text-white"
+                className="rounded-lg p-1.5 text-white/60 hover:bg-white/[0.06] hover:text-white"
                 aria-label="Close"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -179,7 +179,7 @@ export function ConnectButton({
               ))}
             </div>
 
-            <p className="mt-4 text-[11px] leading-relaxed text-white/35">
+            <p className="mt-4 text-[11px] leading-relaxed text-white/60">
               OFFR Rewards only asks for a signature to prove wallet ownership. It never requests a seed
               phrase, private key, or any transaction.
             </p>
