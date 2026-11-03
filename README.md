@@ -60,11 +60,16 @@ Next.js route handlers (Node runtime)
 ## 3. Quick start (local)
 
 ```bash
-npm install
+npm install --include=optional      # optional deps include the SQLite driver
 cp .env.example .env.local          # fill in values, see below
+npm run check:db                    # verifies the driver + applies migrations
 npm run db:migrate                  # creates the schema + seeds campaign tasks/settings
 npm run dev                         # http://localhost:3000
 ```
+
+`better-sqlite3` is an optional dependency so PostgreSQL deployments never need a native build. If an
+install skipped it (npm does this silently when an optional build fails), `npm run check:db` says so and
+prints the fix — `npm install better-sqlite3`. PostgreSQL deployments only need `DATABASE_URL`.
 
 Default local config uses SQLite at `./data/offr.db` and mock balances are **off** by default
 (`CHAIN_MODE=live` needs RPC egress). For offline UI work:

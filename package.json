@@ -2,7 +2,7 @@
   "name": "offr-rewards",
   "version": "1.0.0",
   "private": true,
-  "description": "OFFR Rewards — Web3 community rewards campaign platform for $OFFR (Base Mainnet)",
+  "description": "OFFR Rewards \u2014 Web3 community rewards campaign platform for $OFFR (Base Mainnet)",
   "engines": {
     "node": ">=20.11"
   },
@@ -16,7 +16,8 @@
     "admin:hash": "tsx scripts/provision-admin.ts",
     "seed": "tsx scripts/migrate.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:db": "tsx scripts/check-db.ts"
   },
   "dependencies": {
     "next": "15.5.28",

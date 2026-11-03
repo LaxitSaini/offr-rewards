@@ -9,7 +9,7 @@ The app is a standard Next.js 15 application with one Node process. Two supporte
 
 Everything below can be done from an Android phone in a mobile browser. You do **not** need a laptop,
 a terminal emulator or a desktop wallet to deploy — only to *test* when you want CLI convenience
-(section 8 shows the optional Termux commands, which mirror the browser steps exactly).
+(section 9 shows the optional Termux commands, which mirror the browser steps exactly).
 
 ---
 
@@ -42,13 +42,13 @@ Neon's SQL editor if you need it.
    `db:{dialect:"postgres"}` confirms it.
 8. **Create the admin.** Open `/admin-login` and sign in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`.
    The plaintext password is hashed with scrypt on first login and never stored. Immediately after,
-   rotate it (section 3) and delete `ADMIN_PASSWORD` from Vercel.
+   rotate it (section 4) and delete `ADMIN_PASSWORD` from Vercel.
 9. **Verify the token reads.** `/api/health` must show `chain.metadataLive: true`. If it is `false`,
    the RPC is unreachable from Vercel — set `BASE_RPC_URL` to an Alchemy/QuickNode Base mainnet URL.
 10. **Add the Telegram webhook** (section 5) once `TELEGRAM_BOT_TOKEN` and
     `TELEGRAM_WEBHOOK_SECRET` are set, then reload `/dashboard` on the phone and connect Telegram.
 
-> **Do not send real OFFR** until section 9's checklist is fully ticked and you have recorded a
+> **Do not send real OFFR** until section 10's checklist is fully ticked and you have recorded a
 > small test payout end-to-end.
 
 ---
@@ -201,7 +201,28 @@ Then walk through, with a real wallet, on Base mainnet:
 
 ---
 
-## 7. Backups
+## 7. Troubleshooting
+
+**`/api/health` shows `database.ok:false` on a SQLite host.** The optional native driver was skipped
+during install. Run `npm run check:db` (it prints the diagnosis), then
+`npm install better-sqlite3` — or deploy with `npm ci --include=optional`. Postgres deployments never
+need this driver; if `DATABASE_URL` is set the driver is not loaded at all.
+
+**`chain.metadataLive:false`.** The RPC is unreachable from the host. Set `BASE_RPC_URL` to an
+Alchemy/QuickNode Base mainnet URL and reload. Balances reflect this: the app refuses to show a fake
+zero balance and tells the participant verification is unavailable.
+
+**Admin login says "invalid credentials" but the password is right.** The account is created on the
+first login from `ADMIN_EMAIL`/`ADMIN_PASSWORD`, and only if the password passes the policy (12+ chars,
+letters and numbers) and the `admins` table is empty. Check the server log for
+`[admin] ADMIN_PASSWORD does not meet policy`.
+
+**Telegram claims stay "manual".** Bot credentials are missing or the bot is not an admin of the
+configured chat; `getChatMember` then fails and the app queues the claim for manual review by design.
+
+---
+
+## 8. Backups
 
 - Postgres (Neon): enable point-in-time restore on the project; take a manual snapshot before the first
   payout batch.
@@ -209,7 +230,7 @@ Then walk through, with a real wallet, on Base mainnet:
 
 ---
 
-## 8. Optional: command line from the phone (Termux)
+## 9. Optional: command line from the phone (Termux)
 
 The browser steps above are sufficient. If you prefer a terminal on Android, the mirrors are:
 
@@ -228,7 +249,7 @@ against the production deployment.
 
 ---
 
-## 9. Go-live checklist
+## 10. Go-live checklist
 
 - [ ] `CHAIN_MODE=live` and `/api/health` shows `chain.metadataLive: true`
 - [ ] `TOKEN_DECIMALS` unset (read from chain) unless a documented incident requires the override
@@ -241,6 +262,7 @@ against the production deployment.
 - [ ] Tasks and weights reviewed; inactive tasks disabled
 - [ ] `TELEGRAM_*` and `X_BEARER_TOKEN` configured (or the UI clearly falls back to manual review)
 - [ ] `NEXT_PUBLIC_APP_URL` matches the real `https://` domain
+- [ ] `npm run check:db` reports a healthy database on the deploy host
 - [ ] Database backed up before the campaign; daily snapshot during it
 - [ ] A small test payout recorded and verified end-to-end before the first real batch
 - [ ] `ALLOW_IFRAME_EMBED` **unset** in production
@@ -248,7 +270,7 @@ against the production deployment.
 
 ---
 
-## 10. Operations during the campaign (10–20 days)
+## 11. Operations during the campaign (10–20 days)
 
 - Review the queue daily: **Admin → Review queue**. Approving credits points instantly; the participant sees
   the status change on refresh. Two reviewers clicking approve at the same moment cannot double-credit —
