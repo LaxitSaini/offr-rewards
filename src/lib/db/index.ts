@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { env } from "@/lib/env";
+import type postgresFactory from "postgres";
+import { env, migrationUrl } from "@/lib/env";
 import { migrations } from "./migrations";
 
 export type SqlParam = string | number | null;
@@ -149,20 +150,11 @@ async function createSqliteAdapter(file: string): Promise<Adapter> {
   return q;
 }
 
-async function createPostgresAdapter(connectionString: string): Promise<Adapter> {
-  const postgres = (await import("postgres")).default;
-  const sql = postgres(connectionString, {
-    // Serverless: one connection per invocation (env.pgPoolMax = 1) so a free
-    // Postgres tier's connection limit is not exhausted by cold-start fan-out.
-    max: env.pgPoolMax,
-    idle_timeout: env.serverless ? 5 : 20,
-    max_lifetime: env.serverless ? 60 : null,
-    connect_timeout: 15,
-    prepare: false, // safe behind PgBouncer / serverless poolers (Neon -pooler)
-    onnotice: () => {},
-  });
+type PgClient = ReturnType<typeof postgresFactory>;
 
-  const wrap = (client: typeof sql): Queryable => ({
+/** Wrap any `postgres` client (pooled, direct or a transaction scope). */
+function postgresAdapter(sql: PgClient): Adapter {
+  const wrap = (client: PgClient): Queryable => ({
     async all<T>(text: string, params?: SqlParam[]) {
       const rows = await client.unsafe(toPgPlaceholders(text), (normalizeParams(params) as never[]) ?? []);
       return rows as unknown as T[];
@@ -190,9 +182,24 @@ async function createPostgresAdapter(connectionString: string): Promise<Adapter>
       await sql.unsafe(text);
     },
     async transaction<T>(fn: (t: Queryable) => Promise<T>) {
-      return (await sql.begin(async (tx) => fn(wrap(tx as unknown as typeof sql)))) as T;
+      return (await sql.begin(async (tx: unknown) => fn(wrap(tx as PgClient)))) as T;
     },
   };
+}
+
+async function createPostgresAdapter(connectionString: string): Promise<Adapter> {
+  const postgres = (await import("postgres")).default;
+  const sql = postgres(connectionString, {
+    // Serverless: one connection per invocation (env.pgPoolMax = 1) so a free
+    // Postgres tier's connection limit is not exhausted by cold-start fan-out.
+    max: env.pgPoolMax,
+    idle_timeout: env.serverless ? 5 : 20,
+    max_lifetime: env.serverless ? 60 : null,
+    connect_timeout: 15,
+    prepare: false, // safe behind PgBouncer / serverless poolers (Neon -pooler)
+    onnotice: () => {},
+  });
+  return postgresAdapter(sql);
 }
 
 const globalForDb = globalThis as unknown as {
@@ -255,11 +262,40 @@ export async function applyMigrations(db: Adapter): Promise<void> {
   }
 }
 
+/**
+ * Apply the schema over the direct (non-pooled) connection when the host provides
+ * one, then let it go. Neon's PgBouncer pool is fine for queries but its own
+ * guidance is to run DDL on the direct endpoint; this also keeps a long DDL
+ * statement from occupying a pooled slot.
+ */
+async function migrateOnce(db: Adapter): Promise<void> {
+  if (db.dialect !== "postgres" || !migrationUrl) {
+    await applyMigrations(db);
+    return;
+  }
+  const postgres = (await import("postgres")).default;
+  const direct = postgres(migrationUrl, {
+    max: 1,
+    idle_timeout: 5,
+    connect_timeout: 15,
+    prepare: false,
+    onnotice: () => {},
+  });
+  try {
+    await applyMigrations(postgresAdapter(direct));
+  } finally {
+    await direct.end({ timeout: 5 }).catch(() => undefined);
+  }
+}
+
 /** Connect (once per process) and ensure the schema exists. */
 export async function getDb(): Promise<Adapter> {
   const db = await getAdapter();
   if (!globalForDb.__offrMigrated) {
-    globalForDb.__offrMigrated = applyMigrations(db);
+    globalForDb.__offrMigrated = migrateOnce(db).catch((err: unknown) => {
+      globalForDb.__offrMigrated = undefined;
+      throw err;
+    });
   }
   await globalForDb.__offrMigrated;
   return db;

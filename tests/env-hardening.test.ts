@@ -5,11 +5,31 @@ import {
   env,
   integrations,
   parseAdminSessionHours,
+  parseMigrationUrl,
   parseDecimals,
   parseEvmAddress,
   requireIntegration,
 } from "@/lib/env";
 import { getClientIp } from "@/lib/http";
+
+describe("database connection strategy", () => {
+  // Neon exposes a pooled URL for queries and a direct URL for schema changes.
+  const pooled = "postgresql://u:p@ep-x-pooler.aws.neon.tech/offr?sslmode=require";
+  const direct = "postgresql://u:p@ep-x.aws.neon.tech/offr?sslmode=require";
+
+  it("migrates over the direct URL when the host provides one", () => {
+    expect(parseMigrationUrl(pooled, direct)).toBe(direct);
+  });
+
+  it("falls back to the pooled connection when no direct URL is set", () => {
+    expect(parseMigrationUrl(pooled, undefined)).toBeNull();
+    expect(parseMigrationUrl(undefined, direct)).toBeNull();
+  });
+
+  it("ignores a direct URL that is really the pooled one", () => {
+    expect(parseMigrationUrl(pooled, pooled)).toBeNull();
+  });
+});
 
 describe("env validation", () => {
   it("accepts a well-formed EVM address and lowercases it", () => {
