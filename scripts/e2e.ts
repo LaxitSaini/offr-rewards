@@ -108,8 +108,22 @@ async function signIn(session: Session, privateKey: `0x${string}`, referralCode?
 }
 
 async function adminRedirectCheck(): Promise<number> {
-  const res = await fetch(`${BASE}/admin`, { redirect: "manual" });
-  return res.status;
+  // Every admin page must bounce anonymous visitors with a real 3xx (not a
+  // 200 that merely streams a redirect), so check all of them.
+  const routes = ["", "/submissions", "/participants", "/tasks", "/settings", "/payouts", "/audit"];
+  for (const route of routes) {
+    const res = await fetch(`${BASE}/admin${route}`, { redirect: "manual" });
+    if (res.status !== 307 && res.status !== 302) {
+      console.log(`     · ${route || "/"} returned ${res.status}`);
+      return res.status;
+    }
+    const loc = res.headers.get("location") ?? "";
+    if (!loc.includes("/admin-login")) {
+      console.log(`     · ${route || "/"} redirected to ${loc}`);
+      return res.status;
+    }
+  }
+  return 307;
 }
 
 async function main() {
@@ -439,8 +453,134 @@ async function main() {
   });
   check("admin can unblock a wallet", unblock.status === 200, unblock.data);
 
+  // ── Security, headers and input handling ────────────────────────────────
+  console.log("\n8. Security headers, auth guards and input handling");
+
+  const home = await fetch(`${BASE}/`);
+  const csp = home.headers.get("content-security-policy") ?? "";
+  check("CSP header is served", csp.includes("default-src"), csp.slice(0, 60));
+  check("framing is restricted by CSP", /frame-ancestors/.test(csp));
+  check("X-Content-Type-Options is nosniff", home.headers.get("x-content-type-options") === "nosniff");
+  check("Referrer-Policy is set", Boolean(home.headers.get("referrer-policy")));
+  check("Permissions-Policy is set", Boolean(home.headers.get("permissions-policy")));
+
+  const healthRes = await fetch(`${BASE}/api/health`);
+  const healthJson = await healthRes.json();
+  const healthText = JSON.stringify(healthJson);
+  check("health reports integration flags", typeof healthJson.integrations?.telegram === "boolean");
+  check(
+    "health leaks no secrets or connection strings",
+    !/postgres:\/\/|password|bearer|secret|token=|api[_-]?key/i.test(healthText),
+  );
+
+  let anonBlocked = 0;
+  const adminGetRoutes = [
+    "/api/admin/overview",
+    "/api/admin/submissions",
+    "/api/admin/participants",
+    "/api/admin/payouts",
+    "/api/admin/audit",
+    "/api/admin/tasks",
+    "/api/admin/settings",
+  ];
+  for (const route of adminGetRoutes) {
+    const res = await fetch(`${BASE}${route}`, { redirect: "manual" });
+    if ([401, 403].includes(res.status)) anonBlocked++;
+  }
+  check(
+    `every admin GET route rejects anonymous callers (${anonBlocked}/${adminGetRoutes.length})`,
+    anonBlocked === adminGetRoutes.length,
+  );
+
+  const anonPayout = await fetch(`${BASE}/api/admin/payouts`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ wallet: "0x1111111111111111111111111111111111111111", amount: "1" }),
+  });
+  check("anonymous payout POST is blocked", [401, 403].includes(anonPayout.status));
+
+  const forgedSession = await fetch(`${BASE}/api/me`, { headers: { cookie: "offr_session=deadbeef" } });
+  check("forged participant cookie is rejected", forgedSession.status === 401);
+  const forgedAdmin = await fetch(`${BASE}/api/admin/overview`, {
+    headers: { cookie: "offr_admin=deadbeef" },
+  });
+  check("forged admin cookie is rejected", forgedAdmin.status === 403);
+
+  const probe = new Session();
+  const badAddress = await probe.call("/api/auth/nonce", { method: "POST", body: { address: "nope" } });
+  check("invalid wallet address is refused", badAddress.status === 400);
+
+  const signerKey = generatePrivateKey();
+  const signer = privateKeyToAccount(signerKey);
+  const nonceForSigner = await probe.call<{ message: string }>("/api/auth/nonce", {
+    method: "POST",
+    body: { address: signer.address },
+  });
+  const wrongMessageSig = await signer.signMessage({ message: "a different message entirely" });
+  const wrongMessage = await probe.call("/api/auth/verify", {
+    method: "POST",
+    body: { address: signer.address, signature: wrongMessageSig },
+  });
+  check("signature over a different message is refused", wrongMessage.status === 401);
+
+  // A failed attempt must burn the nonce, otherwise a stolen signature could be
+  // retried forever.
+  const reusedNonce = await probe.call<{ message: string }>("/api/auth/nonce", {
+    method: "POST",
+    body: { address: signer.address },
+  });
+  const staleSig = await signer.signMessage({ message: nonceForSigner.data.message });
+  const staleAttempt = await probe.call("/api/auth/verify", {
+    method: "POST",
+    body: { address: signer.address, signature: staleSig },
+  });
+  check("a previous nonce message cannot be reused", [400, 401, 409].includes(staleAttempt.status));
+
+  const finalNonce = await probe.call<{ message: string }>("/api/auth/nonce", {
+    method: "POST",
+    body: { address: signer.address },
+  });
+  const goodSig = await signer.signMessage({ message: finalNonce.data.message });
+  const firstUse = await probe.call("/api/auth/verify", {
+    method: "POST",
+    body: { address: signer.address, signature: goodSig },
+  });
+  check("a valid signature signs in", firstUse.status === 200);
+  const replay = await probe.call("/api/auth/verify", {
+    method: "POST",
+    body: { address: signer.address, signature: goodSig },
+  });
+  check("the same signature cannot be replayed", [400, 409].includes(replay.status), replay.data);
+
+  const malformed = await fetch(`${BASE}/api/auth/nonce`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{not valid json",
+  });
+  check("malformed JSON is rejected", malformed.status === 400);
+
+  const unknownApi = await fetch(`${BASE}/api/definitely-not-here`);
+  check("unknown API route returns 404", unknownApi.status === 404);
+  const unknownPage = await fetch(`${BASE}/definitely-not-a-page`);
+  check("unknown page returns a 404 status", unknownPage.status === 404);
+
+  const hook = await fetch(`${BASE}/api/telegram/webhook`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  check("telegram webhook refuses unauthenticated calls", [401, 503].includes(hook.status));
+
+  const flooder = new Session();
+  await signIn(flooder, generatePrivateKey());
+  const oversized = await flooder.call("/api/tasks/meme/submit", {
+    method: "POST",
+    body: { proofUrl: `https://example.com/overflow-${suffix}.png`, proofText: "x".repeat(4000) },
+  });
+  check("oversized proof payload is rejected", [400, 413].includes(oversized.status), oversized.status);
+
   // ── Audit ───────────────────────────────────────────────────────────────
-  console.log("\n8. Audit trail + rate limiting");
+  console.log("\n9. Audit trail");
   const audit = await admin.call<any>("/api/admin/audit");
   check("audit log records actions", (audit.data?.entries?.length ?? 0) > 5, audit.data?.total);
   check(
@@ -448,6 +588,7 @@ async function main() {
     audit.data?.entries?.some((e: any) => e.action === "submission.approve") === true,
   );
 
+  console.log("\n10. Rate limiting");
   const fresh = new Session();
   let limited = false;
   for (let i = 0; i < 34; i++) {
