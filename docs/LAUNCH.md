@@ -79,7 +79,7 @@ If any row fails, stop and do not open signup. Tell me which row and what you sa
 
 | Symptom | Do this |
 | --- | --- |
-| Pages 500 right after a deploy | Build used `npm ci` without `--include=optional`, so `better-sqlite3` is missing. Rebuild with the blueprint's build command. |
+| Pages 500 right after a deploy | The database driver is missing. Use the blueprint's build command exactly: `npm ci --include=optional --ignore-scripts && node -e "require('better-sqlite3')" && npm run build`. A plain `npm ci` silently drops the optional driver, and so does `--include=optional` *without* `--ignore-scripts` when the native rebuild fails. |
 | `/api/health` returns 503 | The database is unreachable — check that the disk is mounted at `/var/data` and `SQLITE_PATH` matches. |
 | Everything works but balances fail | RPC is down or blocked. Set a different `BASE_RPC_URL`, or pin `TOKEN_DECIMALS` only if you know the real value. Do not guess it. |
 | Suspected abuse | `/admin/participants` → block the wallet; `/admin/payouts` → void a payout. Both are audited. |

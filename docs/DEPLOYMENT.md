@@ -151,6 +151,11 @@ vercel --prod
 Notes:
 - `better-sqlite3` is only loaded when `DATABASE_URL` is absent; with Postgres configured, the native
   module is never imported at runtime, so a failed native build cannot break the deploy.
+- Install it with `npm ci --include=optional --ignore-scripts`. Without `--include=optional` npm skips it
+  (it is an optional dependency). With scripts enabled npm runs `node-gyp rebuild`, which fails on hosts
+  that cannot reach the Node header mirror — and npm then removes the optional package **without failing
+  the install**, so the deploy looks green and 500s on every page. `--ignore-scripts` uses the published
+  prebuild instead; the `node -e "require('better-sqlite3')"` check keeps that honest.
 - Route handlers run on the Node runtime and are marked dynamic — no static caching of user data.
 - `serverExternalPackages` in `next.config.ts` keeps `postgres` out of the bundler.
 
@@ -167,7 +172,7 @@ once; it stores them encrypted and never shows them again.
 | Root directory | *(empty — repository root)* | `package.json` is at the root |
 | Instance type | **Starter or larger** | a persistent disk is not available on Free |
 | Region | any single region (e.g. Oregon) | keep it near your RPC/audience |
-| Build command | `npm ci --include=optional && npm run build` | `--include=optional` is **required**; without it npm skips `better-sqlite3` and every page returns 500 |
+| Build command | `npm ci --include=optional --ignore-scripts && node -e "require('better-sqlite3')" && npm run build` | `--include=optional` is **required** (npm skips the optional driver otherwise → every page 500). `--ignore-scripts` is **required** too: `better-sqlite3` ships a prebuilt binary, but its `node-gyp rebuild` script fails wherever the Node header mirror is unreachable and npm then drops the optional package **silently**. The `node -e require(...)` step turns that into a failed build instead of a broken deploy. |
 | Start command | `npm start` | runs `next start -H 0.0.0.0 -p $PORT` |
 | Health check path | `/api/health` | returns `200` only when the database answers, `503` otherwise |
 | Disk | name `offr-data`, mount path **`/var/data`**, **1 GB** | SQLite file lives here, not in the ephemeral container |
@@ -208,7 +213,7 @@ that before inviting anyone.
 - Postgres deployments: use the provider's PITR/snapshot feature; `npm run db:backup` refuses and says so.
 
 ### Railway / Fly / VM
-1. Build: `npm ci --include=optional && npm run build`
+1. Build: `npm ci --include=optional --ignore-scripts && node -e "require('better-sqlite3')" && npm run build`
 2. Start: `npm start` (binds `0.0.0.0:$PORT`)
 3. Migration: applied automatically on first request; `npm run db:migrate` to run it explicitly.
 4. Attach a volume and set `SQLITE_PATH` to a path **on** that volume if you are not using Postgres.
@@ -279,8 +284,9 @@ Then walk through, with a real wallet, on Base mainnet:
 
 **`/api/health` shows `database.ok:false` on a SQLite host.** The optional native driver was skipped
 during install. Run `npm run check:db` (it prints the diagnosis), then
-`npm install better-sqlite3` — or deploy with `npm ci --include=optional`. Postgres deployments never
-need this driver; if `DATABASE_URL` is set the driver is not loaded at all.
+`npm ci --include=optional --ignore-scripts` — and keep the `node -e "require('better-sqlite3')"` step
+after it, because npm drops the optional package silently when its native rebuild fails. Postgres
+deployments never need this driver; if `DATABASE_URL` is set the driver is not loaded at all.
 
 **`chain.metadataLive:false`.** The RPC is unreachable from the host. Set `BASE_RPC_URL` to an
 Alchemy/QuickNode Base mainnet URL and reload. Balances reflect this: the app refuses to show a fake

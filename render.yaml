@@ -16,9 +16,16 @@ services:
     region: oregon
     branch: main
     autoDeploy: false # deploy deliberately; flip on after the first green smoke test
-    # `--include=optional` is required: better-sqlite3 is an optional dependency
-    # and npm silently skips it otherwise, which 500s every page.
-    buildCommand: npm ci --include=optional && npm run build
+    # --include=optional : better-sqlite3 is an optional dependency; without it npm
+    #                      silently skips the driver and every page returns 500.
+    # --ignore-scripts   : better-sqlite3 13 ships a prebuilt binary for this platform
+    #                      and its `node-gyp rebuild` script fails wherever the Node
+    #                      headers are unreachable — npm then DROPS the optional
+    #                      package without an error. Verified: this combination yields
+    #                      a working driver from a clean checkout.
+    # node -e require(...) : hard stop if the driver is missing, instead of shipping a
+    #                      deploy whose every page 500s.
+    buildCommand: npm ci --include=optional --ignore-scripts && node -e "require('better-sqlite3')" && npm run build
     # `next start` binds 0.0.0.0:$PORT and sets NODE_ENV=production itself.
     # Migrations apply automatically on first DB access (src/lib/db/index.ts).
     startCommand: npm start
