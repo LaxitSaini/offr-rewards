@@ -49,7 +49,7 @@ Next.js route handlers (Node runtime)
 ```
 
 - **Framework:** Next.js 15 (App Router), TypeScript strict, Tailwind CSS.
-- **Database:** SQLite (`better-sqlite3`) for a single-VM deployment, or PostgreSQL (`postgres`) for managed hosting. One portable SQL layer; migrations live in `src/lib/db/migrations.ts`.
+- **Database:** SQLite (`better-sqlite3`, an *optional* dependency loaded at runtime) for a single-VM deployment, or PostgreSQL (`postgres`) for managed hosting. One portable SQL layer; migrations live in `src/lib/db/migrations.ts`. If the native SQLite build is unavailable, installation still succeeds and only SQLite deployments need it — Postgres users are unaffected.
 - **Chain access:** `viem` with `BASE_RPC_URL`. No private keys are ever held by the app — payouts are sent manually by the team from their own wallet, then verified from the hash.
 - **Auth:** DB-backed sessions (only a SHA-256 of the cookie token is stored), `httpOnly` + `SameSite=Lax` + `Secure` in production, per-session CSRF token checked on every mutation, separate admin sessions with 8-hour TTL by default.
 - **Rate limiting:** database-backed fixed windows so limits survive serverless cold starts.
@@ -92,7 +92,7 @@ The first login attempt also bootstraps the admin from `ADMIN_EMAIL` + `ADMIN_PA
 | --- | --- | --- |
 | `NEXT_PUBLIC_APP_URL` | yes | Public origin, used in metadata. |
 | `SQLITE_PATH` | if no `DATABASE_URL` | SQLite file path (persistent disk). |
-| `DATABASE_URL` | optional | `postgresql://…` switches the app to PostgreSQL automatically. |
+| `DATABASE_URL` | optional | `postgresql://…` switches the app to PostgreSQL automatically (recommended for serverless). |
 | `BASE_RPC_URL` | yes (live) | Base mainnet RPC endpoint. |
 | `CHAIN_MODE` | no | `live` (default) or `mock` (dev/test only). |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_BOT_USERNAME` | optional | Enables automatic Telegram membership verification. |

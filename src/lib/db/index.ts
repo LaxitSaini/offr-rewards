@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { env } from "@/lib/env";
 import { migrations } from "./migrations";
@@ -56,13 +57,18 @@ export function toPgPlaceholders(sql: string): string {
 async function createSqliteAdapter(file: string): Promise<Adapter> {
   // better-sqlite3 is an optional dependency: PostgreSQL deployments do not need
   // the native module, so a failed native build must not break the install.
-  const mod = await import("better-sqlite3").catch(() => null);
-  if (!mod) {
+  // The specifier is resolved at runtime (never bundled) so webpack does not
+  // require the package to exist at build time.
+  const runtimeRequire = createRequire(import.meta.url);
+  const driverName = "better-sqlite3";
+  let Database: typeof import("better-sqlite3");
+  try {
+    Database = runtimeRequire(driverName);
+  } catch {
     throw new Error(
       "SQLite driver (better-sqlite3) is not installed on this host. Set DATABASE_URL to a PostgreSQL connection string, or install the optional dependency.",
     );
   }
-  const Database = mod.default;
   if (file !== ":memory:") {
     fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
   }
