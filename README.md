@@ -197,6 +197,8 @@ real credentials (see `docs/DEPLOYMENT.md` → launch checklist).
 
 ## 7. Deployment
 
+**Launching the campaign? Read [docs/LAUNCH.md](./docs/LAUNCH.md) — the one-page, phone-friendly guide.**
+
 The recommended shape is **one Render web service + SQLite on a persistent disk**. [`render.yaml`](./render.yaml)
 is a ready Blueprint (build, start, disk, health check and every env var); the exact field-by-field table,
 plus backup and restore drills, is in **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)**. A Vercel + Neon
