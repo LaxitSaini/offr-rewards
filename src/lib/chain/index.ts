@@ -68,12 +68,34 @@ function liveProvider(): ChainProvider {
     transport: http(env.baseRpcUrl, { timeout: 15_000, retryCount: 1 }),
   });
 
+  // A mis-pointed RPC (testnet, wrong chain) would silently produce meaningless
+  // balances and receipts, so the chain id is asserted before every read path.
+  let chainCheck: { at: number; id: number } | null = null;
+  async function assertBaseChain(): Promise<void> {
+    if (chainCheck && Date.now() - chainCheck.at < 5 * 60 * 1000) {
+      if (chainCheck.id !== CHAIN_ID) {
+        throw new Error(`RPC is serving chain ${chainCheck.id}; Base mainnet (${CHAIN_ID}) is required.`);
+      }
+      return;
+    }
+    const id = await client.getChainId();
+    chainCheck = { at: Date.now(), id };
+    if (id !== CHAIN_ID) {
+      throw new Error(`RPC is serving chain ${id}; Base mainnet (${CHAIN_ID}) is required.`);
+    }
+  }
+
   return {
     mode: "live",
 
     async getTokenMeta() {
       if (cachedMeta && Date.now() - cachedMeta.at < META_TTL_MS) return cachedMeta.value;
       try {
+        await assertBaseChain();
+        const code = await client.getCode({ address: TOKEN_ADDRESS });
+        if (!code || code === "0x") {
+          throw new Error(`No ERC-20 contract deployed at ${TOKEN_ADDRESS} on Base`);
+        }
         const [symbol, name, decimals] = await Promise.all([
           client.readContract({
             address: TOKEN_ADDRESS,
@@ -91,6 +113,11 @@ function liveProvider(): ChainProvider {
             functionName: "decimals",
           }),
         ]);
+        if (String(symbol).toUpperCase() !== "OFFR") {
+          console.warn(
+            `[chain] token symbol at ${TOKEN_ADDRESS} is "${String(symbol)}", expected OFFR — verify the RPC and contract before paying out.`,
+          );
+        }
         return cacheMeta({
           address: TOKEN_ADDRESS,
           chainId: CHAIN_ID,
@@ -106,6 +133,7 @@ function liveProvider(): ChainProvider {
     },
 
     async getBalance(address) {
+      await assertBaseChain();
       const [raw, blockNumber, meta] = await Promise.all([
         client.readContract({
           address: TOKEN_ADDRESS,
@@ -120,6 +148,7 @@ function liveProvider(): ChainProvider {
     },
 
     async getTransactionReceipt(hash) {
+      await assertBaseChain();
       try {
         const receipt = await client.getTransactionReceipt({ hash });
         return {
@@ -138,6 +167,7 @@ function liveProvider(): ChainProvider {
 
     async hasCode(address) {
       try {
+        await assertBaseChain();
         const code = await client.getCode({ address });
         return Boolean(code && code !== "0x");
       } catch {
