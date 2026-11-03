@@ -1,5 +1,4 @@
 import fs from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { env } from "@/lib/env";
 import { migrations } from "./migrations";
@@ -13,7 +12,7 @@ export interface Queryable {
   run(sql: string, params?: SqlParam[]): Promise<{ changes: number }>;
 }
 
-interface Adapter extends Queryable {
+export interface Adapter extends Queryable {
   dialect: Dialect;
   execRaw(sql: string): Promise<void>;
   transaction<T>(fn: (q: Queryable) => Promise<T>): Promise<T>;
@@ -54,21 +53,59 @@ export function toPgPlaceholders(sql: string): string {
   return out;
 }
 
+/** Loads a CommonJS module through the real Node loader, bypassing webpack shims. */
+function loadFromAnchor(anchor: string, specifier: string): unknown {
+  const getBuiltin = (process as unknown as { getBuiltinModule?: (id: string) => unknown })
+    .getBuiltinModule;
+  if (typeof getBuiltin === "function") {
+    const mod = getBuiltin("node:module") as { createRequire: (p: string) => (id: string) => unknown };
+    return mod.createRequire(anchor)(specifier);
+  }
+  // Older Node (no process.getBuiltinModule): use the CommonJS require of the
+  // module that is executing this function.
+  // eslint-disable-next-line no-eval
+  const runtimeRequire = (0, eval)("require") as (id: string) => unknown;
+  return runtimeRequire(specifier);
+}
+
 async function createSqliteAdapter(file: string): Promise<Adapter> {
   // better-sqlite3 is an optional dependency: PostgreSQL deployments do not need
   // the native module, so a failed native build must not break the install.
   // The specifier is resolved at runtime (never bundled) so webpack does not
   // require the package to exist at build time.
-  const runtimeRequire = createRequire(import.meta.url);
+  // Resolution order matters: the bundle-relative URL can point inside `.next`
+  // (where node_modules is absent under some Next builds), so fall back to the
+  // project root before giving up.
   const driverName = "better-sqlite3";
   let Database: typeof import("better-sqlite3");
-  try {
-    Database = runtimeRequire(driverName);
-  } catch {
+  const attempts: string[] = [];
+  // `node:module` is shimmed inside the webpack server bundle (its
+  // `createRequire` is undefined at runtime) and `import.meta.url` is not usable
+  // there either, so the real CommonJS loader is obtained from the runtime
+  // itself and anchored on the project root.
+  const anchors = [
+    path.join(process.cwd(), "package.json"),
+    ...(process.argv[1] ? [path.join(path.dirname(process.argv[1]), "package.json")] : []),
+    path.join(path.dirname(process.execPath), "package.json"),
+  ];
+  const resolvers = anchors.map((anchor) => () => loadFromAnchor(anchor, driverName));
+  let resolved: typeof import("better-sqlite3") | null = null;
+  for (const attempt of resolvers) {
+    try {
+      resolved = attempt() as typeof import("better-sqlite3");
+      break;
+    } catch (err) {
+      attempts.push((err as Error).message);
+    }
+  }
+  if (!resolved) {
     throw new Error(
-      "SQLite driver (better-sqlite3) is not installed on this host. Set DATABASE_URL to a PostgreSQL connection string, or install the optional dependency.",
+      `SQLite driver (better-sqlite3) could not be loaded (${attempts.join(" | ")}). ` +
+        "Set DATABASE_URL to a PostgreSQL connection string, or reinstall the optional dependency " +
+        "(`npm install better-sqlite3`).",
     );
   }
+  Database = resolved;
   if (file !== ":memory:") {
     fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
   }
@@ -172,7 +209,7 @@ async function getAdapter(): Promise<Adapter> {
   return globalForDb.__offrDb;
 }
 
-async function applyMigrations(db: Adapter): Promise<void> {
+export async function applyMigrations(db: Adapter): Promise<void> {
   await db.execRaw(`CREATE TABLE IF NOT EXISTS schema_migrations (
     version TEXT PRIMARY KEY,
     applied_at BIGINT NOT NULL
@@ -182,12 +219,23 @@ async function applyMigrations(db: Adapter): Promise<void> {
   for (const migration of migrations) {
     if (done.has(migration.version)) continue;
     for (const statement of migration.statements) {
-      await db.execRaw(statement);
+      try {
+        await db.execRaw(statement);
+      } catch (err) {
+        const message = (err as Error).message ?? "";
+        // Two serverless instances can race on startup; DDL is idempotent, so
+        // "already exists" is not fatal.
+        if (/already exists|duplicate key|duplicate/i.test(message)) {
+          console.warn(`[db] migration ${migration.version}: statement already applied`);
+          continue;
+        }
+        throw new Error(`Migration ${migration.version} failed: ${message}`);
+      }
     }
-    await db.run(`INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)`, [
-      migration.version,
-      Date.now(),
-    ]);
+    await db.run(
+      `INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?) ON CONFLICT (version) DO NOTHING`,
+      [migration.version, Date.now()],
+    );
   }
 }
 

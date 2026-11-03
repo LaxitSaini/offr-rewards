@@ -212,4 +212,26 @@ export const migrations: Migration[] = [
       )`,
     ],
   },
+  {
+    version: "002_pending_submission_guard",
+    statements: [
+      // Repair any pre-existing duplicate pending claims (keep the newest) so the
+      // index below can be created without deleting data.
+      `UPDATE submissions SET status = 'rejected',
+         review_note = 'Superseded by migration 002: duplicate pending claim'
+       WHERE status = 'pending' AND EXISTS (
+         SELECT 1 FROM submissions newer
+         WHERE newer.user_id = submissions.user_id
+           AND newer.task_id = submissions.task_id
+           AND newer.status = 'pending'
+           AND (newer.created_at > submissions.created_at
+                OR (newer.created_at = submissions.created_at AND newer.id > submissions.id))
+       )`,
+      // At most one pending claim per wallet per task, enforced by the engine so
+      // two simultaneous submissions cannot both sit in the review queue.
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_submissions_pending ON submissions (user_id, task_id) WHERE status = 'pending'`,
+      `CREATE INDEX IF NOT EXISTS idx_payouts_status ON payouts (status, created_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_submissions_user_task ON submissions (user_id, task_id)`,
+    ],
+  },
 ];
