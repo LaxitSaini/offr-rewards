@@ -80,14 +80,38 @@ function detectProxyPlatform(): boolean {
   );
 }
 
+/**
+ * Serverless hosts give every invocation its own process and a read-only or
+ * ephemeral filesystem. A SQLite file there looks like it works and then loses
+ * every write on the next cold start, so this flag switches the app into a
+ * "Postgres or refuse" mode instead of pretending.
+ */
+export function detectServerless(platform: NodeJS.ProcessEnv): boolean {
+  return Boolean(platform.VERCEL || platform.AWS_LAMBDA_FUNCTION_NAME || platform.NETLIFY);
+}
+
+/** Pool size per invocation. Serverless instances must stay at 1 to protect a
+ * free Postgres tier's connection limit; a long-lived host can use more. */
+export function resolvePgPoolMax(raw: string | undefined, serverless: boolean): number {
+  const parsed = Number(raw);
+  if (raw !== undefined && raw.trim() !== "" && Number.isFinite(parsed) && parsed >= 1) {
+    return Math.min(20, Math.floor(parsed));
+  }
+  return serverless ? 1 : 5;
+}
+
+const serverless = detectServerless(process.env);
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   isProd,
+  serverless,
 
   appUrl: optional("NEXT_PUBLIC_APP_URL") ?? "http://localhost:3000",
 
   databaseUrl: optional("DATABASE_URL"),
   sqlitePath: optional("SQLITE_PATH") ?? "./data/offr.db",
+  pgPoolMax: resolvePgPoolMax(optional("PG_POOL_MAX"), serverless),
 
   baseRpcUrl: optional("BASE_RPC_URL") ?? "https://mainnet.base.org",
   chainMode: (optional("CHAIN_MODE") ?? "live") as "live" | "mock",
@@ -118,6 +142,12 @@ if (isProd && env.chainMode === "mock") {
   );
 }
 
+if (serverless && !env.databaseUrl) {
+  console.warn(
+    "[env] Serverless host detected without DATABASE_URL. SQLite cannot persist here — set DATABASE_URL to a Postgres connection string (Neon/Supabase/Render) before serving traffic. See docs/DEPLOYMENT-FREE.md.",
+  );
+}
+
 if (isProd && process.env.RATE_LIMIT_DISABLED) {
   console.warn("[env] RATE_LIMIT_DISABLED is ignored in production.");
 }
@@ -137,7 +167,11 @@ export const integrations = {
   telegramPartiallyConfigured: Boolean(env.telegramBotToken) !== Boolean(env.telegramChatId),
   xConfigured: Boolean(env.xBearerToken),
   chainLive: env.chainMode === "live",
-  database: env.databaseUrl?.startsWith("postgres") ? "postgres" : "sqlite",
+  database: env.databaseUrl?.startsWith("postgres")
+    ? "postgres"
+    : env.serverless
+      ? "none" // serverless with no DATABASE_URL: there is no database, not a SQLite one
+      : "sqlite",
   teamWalletRestricted: Boolean(env.teamWallet),
 } as const;
 

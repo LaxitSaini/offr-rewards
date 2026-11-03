@@ -129,3 +129,16 @@ export function safeJsonParse<T>(value: string | null | undefined, fallback: T):
   }
 }
 
+
+/**
+ * Operator-facing database error text: keep the reason (missing database, bad
+ * password, connection refused), remove anything credential-shaped. Used by
+ * /api/health so a free-tier deployment can be debugged without leaking the DSN.
+ */
+export function sanitizeDbError(message: string): string {
+  return message
+    .replace(/postgres(ql)?:\/\/[^\s"']+/gi, "postgres://***")
+    .replace(/password=\S+/gi, "password=***")
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "***")
+    .slice(0, 200);
+}
