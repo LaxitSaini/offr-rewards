@@ -40,7 +40,7 @@ export function DashboardView({ initial, csrf }: { initial: DashboardPayload; cs
           <h1 className="mt-2 text-2xl font-semibold tracking-[-0.02em] sm:text-[28px]">
             Welcome back, <span className="mono text-lime">{shortAddress(data.user.wallet, 5)}</span>
           </h1>
-          <p className="mt-1 text-[13px] text-white/40">
+          <p className="mt-1 text-[13px] text-white/60">
             {data.campaign.name} · ends {formatDate(data.campaign.endsAt)} ·{" "}
             {pendingCount > 0 ? `${pendingCount} submission(s) awaiting review` : "no pending reviews"}
           </p>
@@ -104,7 +104,7 @@ export function DashboardView({ initial, csrf }: { initial: DashboardPayload; cs
                 <p className="kicker">Tasks</p>
                 <h2 className="mt-1 text-lg font-semibold tracking-[-0.01em]">Campaign board</h2>
               </div>
-              <span className="text-[11px] text-white/30">
+              <span className="text-[11px] text-white/60">
                 {data.tasks.filter((t) => t.status === "completed").length}/{allowedTasks} verified
               </span>
             </div>
@@ -120,7 +120,7 @@ export function DashboardView({ initial, csrf }: { initial: DashboardPayload; cs
                 />
               ))}
               {data.tasks.length === 0 && (
-                <div className="card p-6 text-center text-sm text-white/40">
+                <div className="card p-6 text-center text-sm text-white/60">
                   No tasks are active right now. Check back soon.
                 </div>
               )}
@@ -132,12 +132,12 @@ export function DashboardView({ initial, csrf }: { initial: DashboardPayload; cs
           <section className="card p-5">
             <p className="kicker">Verification log</p>
             <h2 className="mt-1 text-[15px] font-semibold">Server-side checks</h2>
-            <p className="mt-1 text-[12px] text-white/40">
+            <p className="mt-1 text-[12px] text-white/60">
               Everything below was checked by the OFFR server — never by your browser.
             </p>
             <div className="mt-3 space-y-2">
               {data.verifications.length === 0 && (
-                <p className="py-4 text-center text-[12.5px] text-white/30">
+                <p className="py-4 text-center text-[12.5px] text-white/60">
                   No verifications recorded yet.
                 </p>
               )}
@@ -148,11 +148,11 @@ export function DashboardView({ initial, csrf }: { initial: DashboardPayload; cs
                 >
                   <div className="min-w-0">
                     <p className="text-[12.5px] font-medium capitalize">{v.kind.replace(/_/g, " ")}</p>
-                    <p className="mt-0.5 line-clamp-2 text-[11px] text-white/35">{v.detail ?? "—"}</p>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] text-white/60">{v.detail ?? "—"}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <StatusBadge status={v.status} />
-                    <span className="text-[10px] text-white/25">{formatDate(v.checkedAt)}</span>
+                    <span className="text-[11px] text-white/60">{formatDate(v.checkedAt)}</span>
                   </div>
                 </div>
               ))}

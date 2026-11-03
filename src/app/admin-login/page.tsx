@@ -29,7 +29,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-12">
+    <main id="main" className="flex min-h-dvh items-center justify-center px-4 py-12 safe-bottom">
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-lime text-[13px] font-black text-ink-950">
@@ -37,13 +37,13 @@ export default function AdminLoginPage() {
           </span>
           <div>
             <p className="text-sm font-semibold leading-none">OFFR Rewards</p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-white/35">Team console</p>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-white/60">Team console</p>
           </div>
         </div>
 
         <div className="card card-pad mt-6">
           <h1 className="text-lg font-semibold">Admin sign in</h1>
-          <p className="mt-1 text-[12px] leading-relaxed text-white/40">
+          <p className="mt-1 text-[12px] leading-relaxed text-white/60">
             Restricted access. Sessions expire automatically and every action is written to the audit log.
           </p>
 
@@ -83,12 +83,12 @@ export default function AdminLoginPage() {
           </form>
         </div>
 
-        <p className="mt-4 text-center text-[11px] text-white/25">
-          <Link href="/" className="hover:text-white/50">
+        <p className="mt-4 text-center text-[11px] text-white/60">
+          <Link href="/" className="hover:text-white/70">
             ← Back to campaign
           </Link>
         </p>
       </div>
-    </div>
+    </main>
   );
 }

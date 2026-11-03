@@ -63,8 +63,8 @@ export default function AdminOverviewPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="kicker">Operations</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">{data.campaign.campaignName}</h1>
-          <p className="mt-1 text-[12px] text-white/40">
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">{data.campaign.campaignName}</h2>
+          <p className="mt-1 text-[12px] text-white/60">
             {formatDate(data.campaign.campaignStartsAt)} → {formatDate(data.campaign.campaignEndsAt)} ·{" "}
             {data.campaign.submissionsOpen ? "submissions open" : "submissions closed"}
           </p>
@@ -108,9 +108,9 @@ export default function AdminOverviewPage() {
           },
         ].map((item) => (
           <div key={item.label} className="stat">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30">{item.label}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">{item.label}</p>
             <p className="stat-value">{item.value}</p>
-            <p className="mt-0.5 text-[10.5px] text-white/30">{item.sub}</p>
+            <p className="mt-0.5 text-[11.5px] text-white/60">{item.sub}</p>
           </div>
         ))}
       </div>
@@ -125,21 +125,21 @@ export default function AdminOverviewPage() {
               <div key={task.slug} className="row">
                 <div className="min-w-0">
                   <p className="truncate text-[13px]">{task.title}</p>
-                  <p className="text-[10.5px] text-white/30">
+                  <p className="text-[11.5px] text-white/60">
                     {task.points} pts · {task.slug}
                   </p>
                 </div>
                 <span className="text-sm font-semibold tabular-nums text-white/70">{task.approvals}</span>
               </div>
             ))}
-            {data.topTasks.length === 0 && <p className="py-6 text-center text-xs text-white/30">No tasks.</p>}
+            {data.topTasks.length === 0 && <p className="py-6 text-center text-xs text-white/60">No tasks.</p>}
           </div>
         </section>
 
         <section className="card">
           <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3.5">
             <p className="text-[12.5px] font-semibold">Recent activity</p>
-            <Link href="/admin/audit" className="text-[11px] text-white/35 hover:text-lime">
+            <Link href="/admin/audit" className="text-[11px] text-white/60 hover:text-lime">
               Full log →
             </Link>
           </div>
@@ -148,17 +148,17 @@ export default function AdminOverviewPage() {
               <div key={entry.id} className="row">
                 <div className="min-w-0">
                   <p className="mono truncate text-[12px] text-white/75">{entry.action}</p>
-                  <p className="truncate text-[10.5px] text-white/30">
+                  <p className="truncate text-[11.5px] text-white/60">
                     {entry.actor_type}
                     {entry.actor_email ? ` · ${entry.actor_email}` : ""}
                     {entry.target_type ? ` → ${entry.target_type}` : ""}
                   </p>
                 </div>
-                <span className="shrink-0 text-[10px] text-white/25">{formatDate(entry.created_at)}</span>
+                <span className="shrink-0 text-[11px] text-white/60">{formatDate(entry.created_at)}</span>
               </div>
             ))}
             {data.recentAudit.length === 0 && (
-              <p className="py-6 text-center text-xs text-white/30">No activity yet.</p>
+              <p className="py-6 text-center text-xs text-white/60">No activity yet.</p>
             )}
           </div>
         </section>
@@ -166,22 +166,22 @@ export default function AdminOverviewPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="card p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/30">Pending payouts</p>
+          <p className="text-[11px] uppercase tracking-wider text-white/60">Pending payouts</p>
           <p className="mt-1 text-lg font-semibold tabular-nums">{data.counts.pendingPayoutOffr} OFFR</p>
-          <p className="text-[10.5px] text-white/30">{data.counts.pendingPayouts} recorded, unverified</p>
+          <p className="text-[11.5px] text-white/60">{data.counts.pendingPayouts} recorded, unverified</p>
         </div>
         <div className="card p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/30">Reward rate</p>
+          <p className="text-[11px] uppercase tracking-wider text-white/60">Reward rate</p>
           <p className="mt-1 text-lg font-semibold">{data.campaign.offrPerPoint} OFFR / point</p>
-          <p className="text-[10.5px] text-white/30">Cap {data.campaign.maxRewardPerUserOffr} per wallet</p>
+          <p className="text-[11.5px] text-white/60">Cap {data.campaign.maxRewardPerUserOffr} per wallet</p>
         </div>
         <div className="card p-4">
-          <p className="text-[10px] uppercase tracking-wider text-white/30">Chain verification</p>
+          <p className="text-[11px] uppercase tracking-wider text-white/60">Chain verification</p>
           <p className="mt-1 flex items-center gap-2 text-lg font-semibold">
             <StatusBadge status={data.integrations.chainLive ? "verified" : "pending"} />
             {data.integrations.chainLive ? "Live RPC" : "Mock mode"}
           </p>
-          <p className="text-[10.5px] text-white/30">Base mainnet · 8453</p>
+          <p className="text-[11.5px] text-white/60">Base mainnet · 8453</p>
         </div>
       </div>
     </div>

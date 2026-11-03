@@ -125,8 +125,8 @@ export default function AdminTasksPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="kicker">Reward engine</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">Tasks & weights</h1>
-          <p className="mt-1 text-[12px] text-white/40">
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">Tasks & weights</h2>
+          <p className="mt-1 text-[12px] text-white/60">
             Points are the task weight. Changes apply to future approvals only — already awarded points never
             change retroactively.
           </p>
@@ -247,8 +247,8 @@ export default function AdminTasksPage() {
                     <span className="badge-neutral">{task.auto_verify}</span>
                     {!task.active && <span className="badge-rejected">Inactive</span>}
                   </div>
-                  <p className="mono mt-1 text-[11px] text-white/30">{task.slug}</p>
-                  <p className="mt-1 max-w-2xl text-[11.5px] text-white/40">{task.description}</p>
+                  <p className="mono mt-1 text-[11px] text-white/60">{task.slug}</p>
+                  <p className="mt-1 max-w-2xl text-[11.5px] text-white/60">{task.description}</p>
                 </div>
 
                 <div className="flex flex-wrap items-end gap-2">

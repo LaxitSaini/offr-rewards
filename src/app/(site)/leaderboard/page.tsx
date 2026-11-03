@@ -28,18 +28,18 @@ export default async function LeaderboardPage() {
         </div>
         <div className="flex gap-2">
           <div className="stat min-w-[110px]">
-            <p className="text-[10px] uppercase tracking-wider text-white/30">Participants</p>
+            <p className="text-[11px] uppercase tracking-wider text-white/60">Participants</p>
             <p className="stat-value">{stats.participants}</p>
           </div>
           <div className="stat min-w-[110px]">
-            <p className="text-[10px] uppercase tracking-wider text-white/30">Points</p>
+            <p className="text-[11px] uppercase tracking-wider text-white/60">Points</p>
             <p className="stat-value">{stats.pointsAwarded.toLocaleString()}</p>
           </div>
         </div>
       </div>
 
       <div className="card mt-6 overflow-hidden">
-        <div className="hidden grid-cols-[60px_1fr_140px_90px] gap-3 border-b border-white/[0.06] px-5 py-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/30 sm:grid">
+        <div className="hidden grid-cols-[60px_1fr_140px_90px] gap-3 border-b border-white/[0.06] px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60 sm:grid">
           <span>Rank</span>
           <span>Wallet</span>
           <span>X account</span>
@@ -48,8 +48,8 @@ export default async function LeaderboardPage() {
 
         {entries.length === 0 && (
           <div className="px-5 py-14 text-center">
-            <p className="text-sm text-white/50">No approved contributions yet.</p>
-            <p className="mt-1 text-xs text-white/30">
+            <p className="text-sm text-white/70">No approved contributions yet.</p>
+            <p className="mt-1 text-xs text-white/60">
               The first approved task takes rank 1 — the board updates immediately.
             </p>
             <Link href="/dashboard" className="btn-primary btn-sm mt-4">
@@ -73,18 +73,18 @@ export default async function LeaderboardPage() {
                     ? "text-white/70"
                     : entry.rank === 3
                       ? "text-ember"
-                      : "text-white/30"
+                      : "text-white/60"
               }`}
             >
               {String(entry.rank).padStart(2, "0")}
             </span>
             <div className="min-w-0">
               <p className="mono truncate text-[13px] text-white/80">{entry.wallet}</p>
-              <p className="mt-0.5 text-[10.5px] text-white/30 sm:hidden">
+              <p className="mt-0.5 text-[11.5px] text-white/60 sm:hidden">
                 {entry.approvedTasks} approved task{entry.approvedTasks === 1 ? "" : "s"}
               </p>
             </div>
-            <span className="hidden truncate text-[11.5px] text-white/35 sm:block">
+            <span className="hidden truncate text-[11.5px] text-white/60 sm:block">
               {entry.xUsername ? `@${entry.xUsername}` : "—"}
             </span>
             <span className="text-right text-sm font-semibold tabular-nums text-white/85">
@@ -94,7 +94,7 @@ export default async function LeaderboardPage() {
         ))}
       </div>
 
-      <p className="mt-4 text-center text-[11px] text-white/25">
+      <p className="mt-4 text-center text-[11px] text-white/60">
         Campaign window: {formatDate(stats.startsAt)} → {formatDate(stats.endsAt)} · payouts are manual and
         never guaranteed.
       </p>

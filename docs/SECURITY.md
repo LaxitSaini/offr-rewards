@@ -117,3 +117,4 @@ Findings raised in the final review, all fixed in this branch and covered by tes
 | 14 | Low | `/api/health` disclosed whether admin bootstrap credentials were present. | Removed. |
 | 15 | Low | CSP allowed external `connect-src` origins although the browser never calls an RPC. | Narrowed to `'self'`. |
 | 16 | Low | X post authorship could be accepted without binding the account when no handle was supplied. | The verified author is now written to the participant record and to the submission evidence. |
+| 17 | High | `getBalance` still formatted with an assumed 18 decimals when the on-chain metadata read failed, so a degraded RPC could show (and gate a hold on) a mis-scaled balance. | Balance reads now fail closed when metadata came from the fallback and `TOKEN_DECIMALS` is unset: the user sees a retryable "could not read your balance" state instead of a wrong number. Test: `tests/security-static.test.ts`. |

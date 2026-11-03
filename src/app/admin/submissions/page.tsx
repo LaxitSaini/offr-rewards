@@ -114,8 +114,8 @@ export default function AdminSubmissionsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="kicker">Review queue</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">Submissions</h1>
-          <p className="mt-1 text-[12px] text-white/40">
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">Submissions</h2>
+          <p className="mt-1 text-[12px] text-white/60">
             Server-side verification results are attached to each claim. Approving credits points immediately.
           </p>
         </div>
@@ -153,7 +153,7 @@ export default function AdminSubmissionsPage() {
             className={`rounded-lg px-3 py-1.5 text-[12px] font-medium capitalize transition ${
               status === filter
                 ? "bg-lime/15 text-lime"
-                : "border border-white/10 text-white/50 hover:bg-white/[0.05]"
+                : "border border-white/10 text-white/70 hover:bg-white/[0.05]"
             }`}
           >
             {filter}
@@ -166,7 +166,7 @@ export default function AdminSubmissionsPage() {
       {loading && <div className="skeleton h-32 w-full" />}
 
       {!loading && rows.length === 0 && (
-        <div className="card p-10 text-center text-sm text-white/40">
+        <div className="card p-10 text-center text-sm text-white/60">
           Nothing in this queue. {status === "pending" && "You are all caught up."}
         </div>
       )}
@@ -177,15 +177,15 @@ export default function AdminSubmissionsPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-[14px] font-semibold">{row.task_title}</h2>
+                  <h3 className="text-[14px] font-semibold">{row.task_title}</h3>
                   <StatusBadge status={row.status} />
                   <StatusBadge status={row.verification_state} />
                 </div>
-                <p className="mono mt-1 text-[11.5px] text-white/45">
+                <p className="mono mt-1 text-[11.5px] text-white/65">
                   {shortAddress(row.wallet, 6)} · {formatDate(row.created_at)} ·{" "}
                   {row.user_submission_count} submission(s)
                 </p>
-                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/35">
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/60">
                   {row.x_username && <span>X: @{row.x_username}</span>}
                   {row.telegram_username && <span>TG: {row.telegram_username}</span>}
                   <span>Task weight: {row.task_points} pts</span>
@@ -251,10 +251,10 @@ export default function AdminSubmissionsPage() {
                 </p>
               )}
               {row.verification_detail && (
-                <p className="mt-2 text-[11px] text-white/35">System: {row.verification_detail}</p>
+                <p className="mt-2 text-[11px] text-white/60">System: {row.verification_detail}</p>
               )}
               {row.review_note && (
-                <p className="mt-1 text-[11px] text-white/35">Previous note: {row.review_note}</p>
+                <p className="mt-1 text-[11px] text-white/60">Previous note: {row.review_note}</p>
               )}
             </div>
 
@@ -269,11 +269,11 @@ export default function AdminSubmissionsPage() {
                       <p className="text-[11px] capitalize text-white/55">
                         {v.kind.replace(/_/g, " ")} · {v.method}
                       </p>
-                      {v.detail && <p className="line-clamp-2 text-[10.5px] text-white/30">{v.detail}</p>}
+                      {v.detail && <p className="line-clamp-2 text-[11.5px] text-white/60">{v.detail}</p>}
                     </div>
                     <div className="shrink-0 text-right">
                       <StatusBadge status={v.status} />
-                      <p className="mt-0.5 text-[9.5px] text-white/25">{formatDate(v.checked_at)}</p>
+                      <p className="mt-0.5 text-[9.5px] text-white/60">{formatDate(v.checked_at)}</p>
                     </div>
                   </div>
                 ))}
@@ -303,7 +303,7 @@ export default function AdminSubmissionsPage() {
         >
           Previous
         </button>
-        <span className="text-[11px] text-white/30">Page {page}</span>
+        <span className="text-[11px] text-white/60">Page {page}</span>
         <button
           type="button"
           className="btn-secondary btn-sm"

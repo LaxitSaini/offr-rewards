@@ -17,7 +17,8 @@
     "seed": "tsx scripts/migrate.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:db": "tsx scripts/check-db.ts"
+    "check:db": "tsx scripts/check-db.ts",
+    "db:backup": "tsx scripts/backup-db.ts"
   },
   "dependencies": {
     "next": "15.5.28",
@@ -37,6 +38,7 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "autoprefixer": "^10.4.21",
+    "linkedom": "^0.18.5",
     "postcss": "^8.5.3",
     "tailwindcss": "3.4.19",
     "tsx": "^4.23.15",

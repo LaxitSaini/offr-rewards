@@ -88,7 +88,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
   if (!admin) {
     return (
       <div className="shell py-20 text-center">
-        <p className="text-sm text-white/50">Admin session required. Redirecting…</p>
+        <p className="text-sm text-white/70">Admin session required. Redirecting…</p>
         <a href="/admin-login" className="link mt-2 inline-block text-sm">
           Open admin login
         </a>

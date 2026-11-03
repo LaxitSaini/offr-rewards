@@ -83,8 +83,8 @@ export default function AdminParticipantsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="kicker">Community</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">Participants</h1>
-          <p className="mt-1 text-[12px] text-white/40">{total} wallets registered.</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">Participants</h2>
+          <p className="mt-1 text-[12px] text-white/60">{total} wallets registered.</p>
         </div>
         <form
           className="flex items-center gap-2"
@@ -130,14 +130,14 @@ export default function AdminParticipantsPage() {
                       </span>
                     ))}
                   </div>
-                  <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/35">
+                  <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-white/60">
                     <span>{row.points_cached} pts</span>
                     <span>{row.approved}/{row.submissions} approved</span>
                     <span>{row.paidOffr} OFFR paid</span>
                     <span>{row.hold_days} hold days</span>
                     <span>code {row.referral_code}</span>
                   </p>
-                  <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-white/25">
+                  <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-white/60">
                     <span>joined {formatDate(row.created_at)}</span>
                     {row.x_username && <span>X @{row.x_username}</span>}
                     {row.telegram_username && <span>TG {row.telegram_username}</span>}
@@ -185,7 +185,7 @@ export default function AdminParticipantsPage() {
             </article>
           ))}
           {rows.length === 0 && (
-            <div className="card p-10 text-center text-sm text-white/40">No participants match that search.</div>
+            <div className="card p-10 text-center text-sm text-white/60">No participants match that search.</div>
           )}
         </div>
       )}
@@ -199,7 +199,7 @@ export default function AdminParticipantsPage() {
         >
           Previous
         </button>
-        <span className="text-[11px] text-white/30">Page {page}</span>
+        <span className="text-[11px] text-white/60">Page {page}</span>
         <button
           type="button"
           className="btn-secondary btn-sm"

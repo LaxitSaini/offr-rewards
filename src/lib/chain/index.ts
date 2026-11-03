@@ -144,6 +144,14 @@ function liveProvider(): ChainProvider {
         client.getBlockNumber().catch(() => null),
         this.getTokenMeta(),
       ]);
+      // Fail closed: if the token's decimals could not be read from Base we must
+      // not guess, because a wrong scale would misreport balances and the hold
+      // threshold. Operators can pin the value explicitly with TOKEN_DECIMALS.
+      if (meta.source === "fallback" && env.tokenDecimalsOverride == null) {
+        throw new Error(
+          "OFFR metadata could not be read from Base. Balance display is paused to avoid showing a wrong amount. Retry shortly or set TOKEN_DECIMALS explicitly.",
+        );
+      }
       return { raw: raw as bigint, formatted: formatUnits(raw as bigint, meta.decimals), blockNumber, meta };
     },
 

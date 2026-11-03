@@ -60,16 +60,19 @@ Next.js route handlers (Node runtime)
 ## 3. Quick start (local)
 
 ```bash
-npm install --include=optional      # optional deps include the SQLite driver
+npm ci --include=optional --ignore-scripts   # optional dep = prebuilt SQLite driver, no native rebuild
 cp .env.example .env.local          # fill in values, see below
 npm run check:db                    # verifies the driver + applies migrations
+npm run db:backup                   # verified SQLite backup + retention (see docs/DEPLOYMENT.md §8)
 npm run db:migrate                  # creates the schema + seeds campaign tasks/settings
 npm run dev                         # http://localhost:3000
 ```
 
-`better-sqlite3` is an optional dependency so PostgreSQL deployments never need a native build. If an
-install skipped it (npm does this silently when an optional build fails), `npm run check:db` says so and
-prints the fix — `npm install better-sqlite3`. PostgreSQL deployments only need `DATABASE_URL`.
+`better-sqlite3` is an optional dependency so PostgreSQL deployments never need a native build, and it
+ships a prebuilt binary. Install it with `--include=optional --ignore-scripts`: without the first flag npm
+skips it, and with install scripts enabled its `node-gyp rebuild` fails on hosts that cannot reach the
+Node header mirror — npm then removes the package *silently*. `npm run check:db` reports a missing driver
+with the exact fix. PostgreSQL deployments only need `DATABASE_URL`.
 
 Default local config uses SQLite at `./data/offr.db` and mock balances are **off** by default
 (`CHAIN_MODE=live` needs RPC egress). For offline UI work:
@@ -196,8 +199,12 @@ real credentials (see `docs/DEPLOYMENT.md` → launch checklist).
 
 ## 7. Deployment
 
-See **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** for Vercel + Neon, Railway/Render with a persistent disk,
-environment setup, migration steps, Telegram webhook registration and the go-live checklist.
+**Launching the campaign? Read [docs/LAUNCH.md](./docs/LAUNCH.md) — the one-page, phone-friendly guide.**
+
+The recommended shape is **one Render web service + SQLite on a persistent disk**. [`render.yaml`](./render.yaml)
+is a ready Blueprint (build, start, disk, health check and every env var); the exact field-by-field table,
+plus backup and restore drills, is in **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)**. A Vercel + Neon
+(Postgres) shape is also implemented and documented there.
 
 Security model and threat notes: **[docs/SECURITY.md](./docs/SECURITY.md)**.
 

@@ -38,7 +38,7 @@ export default async function DashboardPage() {
 
           <div className="card card-pad mt-6">
             <ConnectButton full />
-            <ul className="mt-4 space-y-2.5 text-[12.5px] leading-relaxed text-white/45">
+            <ul className="mt-4 space-y-2.5 text-[12.5px] leading-relaxed text-white/65">
               <li className="flex gap-2">
                 <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-lime" />
                 Base-compatible wallets: MetaMask, Coinbase Wallet, Rabby, Brave.
@@ -63,7 +63,7 @@ export default async function DashboardPage() {
             </ul>
           </div>
 
-          <p className="mt-4 text-center text-[12px] text-white/30">
+          <p className="mt-4 text-center text-[12px] text-white/60">
             New here?{" "}
             <Link className="link" href="/">
               Read about the campaign

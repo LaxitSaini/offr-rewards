@@ -81,8 +81,8 @@ export default function AdminSettingsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="kicker">Configuration</p>
-          <h1 className="mt-1 text-xl font-semibold tracking-tight">Campaign settings</h1>
-          <p className="mt-1 text-[12px] text-white/40">
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">Campaign settings</h2>
+          <p className="mt-1 text-[12px] text-white/60">
             Weights, caps and dates are stored in the database. Every change is written to the audit log.
           </p>
         </div>
