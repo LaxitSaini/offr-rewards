@@ -200,11 +200,15 @@ real credentials (see `docs/DEPLOYMENT.md` → launch checklist).
 ## 7. Deployment
 
 **Launching the campaign? Read [docs/LAUNCH.md](./docs/LAUNCH.md) — the one-page, phone-friendly guide.**
+**No budget and no credit card? Read [docs/DEPLOYMENT-FREE.md](./docs/DEPLOYMENT-FREE.md).**
 
-The recommended shape is **one Render web service + SQLite on a persistent disk**. [`render.yaml`](./render.yaml)
-is a ready Blueprint (build, start, disk, health check and every env var); the exact field-by-field table,
-plus backup and restore drills, is in **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)**. A Vercel + Neon
-(Postgres) shape is also implemented and documented there.
+The **card-free default** is a free web host (Render free instance, or Vercel Hobby) plus a free Postgres
+database (Neon). [`render.yaml`](./render.yaml) is a ready Blueprint for that shape — free instance, no
+disk, `DATABASE_URL` as the only required secret — and [`vercel.json`](./vercel.json) configures the
+Vercel flavour. The paid, single-host variant with SQLite on a persistent disk lives in
+[`render-paid.yaml`](./render-paid.yaml). Field-by-field tables, backup/restore and the free-tier limits
+are in **[docs/DEPLOYMENT-FREE.md](./docs/DEPLOYMENT-FREE.md)** and
+**[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)**.
 
 Security model and threat notes: **[docs/SECURITY.md](./docs/SECURITY.md)**.
 

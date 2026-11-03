@@ -1,4 +1,9 @@
-# OFFR Rewards — Render Blueprint.
+# OFFR Rewards — Render Blueprint, PAID path (persistent disk + SQLite).
+#
+# A persistent disk requires a paid instance type, so Render will ask for a card.
+# If you need a card-free deployment, use render.yaml (Render free instance +
+# free Postgres) or vercel.json (Vercel Hobby + Neon), both documented in
+# docs/DEPLOYMENT-FREE.md.
 #
 # One web service running Next.js in front of SQLite on a persistent disk.
 # Every value below is taken from package.json, src/lib/env.ts and

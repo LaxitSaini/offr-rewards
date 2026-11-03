@@ -1,0 +1,65 @@
+# OFFR Rewards — Render Blueprint, CARD-FREE path (no disk, Postgres).
+#
+# Why this shape: a persistent disk is a paid Render feature, so the disk-based
+# blueprint (see render-paid.yaml) asks for a card. This blueprint keeps the web
+# service on Render's free instance and stores data in an external Postgres
+# database (Neon/Supabase free tier), which needs no card either.
+#
+# Settings below are taken from package.json, src/lib/env.ts and the migration
+# code — nothing is invented.
+#
+# Usage: Render Dashboard → New → Blueprint → pick this repo → Apply, then paste
+# the DATABASE_URL from your Neon project when Render prompts for it.
+
+services:
+  - type: web
+    name: offr-rewards
+    runtime: node
+    plan: free # 512 MB / 0.1 CPU, spins down after 15 min idle, ~1 min cold start
+    region: oregon # keep it in the same region as your Neon project
+    branch: main
+    autoDeploy: false # deploy deliberately until the first smoke test is green
+    buildCommand: npm ci --include=optional --ignore-scripts && npm run build
+    # Migrations run automatically on first database access (src/lib/db/index.ts),
+    # so no release command is required.
+    startCommand: npm start
+    healthCheckPath: /api/health
+
+    envVars:
+      # ── database: the only required secret ────────────────────────────────
+      - key: DATABASE_URL
+        sync: false # Neon/Supabase connection string (pooled host recommended)
+      - key: PG_POOL_MAX
+        value: 5 # long-lived process, so a small pool is fine
+
+      # ── runtime ───────────────────────────────────────────────────────────
+      - key: NODE_VERSION
+        value: 22.14.0
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false # e.g. https://offr-rewards.onrender.com
+      - key: CHAIN_MODE
+        value: live
+      - key: BASE_RPC_URL
+        sync: false # blank = https://mainnet.base.org
+      - key: TOKEN_DECIMALS
+        sync: false # leave EMPTY so decimals are read from the contract
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false # delete after the first login + password rotation
+
+      # ── optional integrations: blank = documented manual-review fallback ──
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        generateValue: true
+      - key: X_BEARER_TOKEN
+        sync: false
+      - key: TEAM_WALLET_ADDRESS
+        sync: false
+      - key: ADMIN_SESSION_HOURS
+        value: 8
