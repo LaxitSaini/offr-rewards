@@ -30,6 +30,7 @@ export default function AdminPayoutsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({ wallet: "", amount: "", txHash: "", note: "" });
+  const [overrideHold, setOverrideHold] = useState(false);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("all");
 
@@ -67,6 +68,7 @@ export default function AdminPayoutsPage() {
           amount: form.amount.trim(),
           txHash: form.txHash.trim() || null,
           note: form.note.trim() || null,
+          overrideHoldRequirement: overrideHold,
         },
       });
       setMessage(
@@ -77,6 +79,7 @@ export default function AdminPayoutsPage() {
             : "Payout recorded. Add the transaction hash once the transfer is sent.",
       );
       setForm({ wallet: "", amount: "", txHash: "", note: "" });
+      setOverrideHold(false);
       await load();
     } catch (err) {
       setError(errorMessage(err));
@@ -193,6 +196,20 @@ export default function AdminPayoutsPage() {
               value={form.note}
               onChange={(e) => setForm({ ...form, note: e.target.value })}
             />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="flex items-start gap-2 text-[12px] leading-relaxed text-white/45">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={overrideHold}
+                onChange={(e) => setOverrideHold(e.target.checked)}
+              />
+              <span>
+                Override the campaign holding requirement (only when the hold rule is enabled and the
+                team has approved an exception — the override is written to the audit log).
+              </span>
+            </label>
           </div>
           <div className="sm:col-span-2">
             <button type="submit" className="btn-primary btn-sm" disabled={busy}>

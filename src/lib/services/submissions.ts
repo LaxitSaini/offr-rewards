@@ -1,9 +1,9 @@
-import { execute, newId, query, queryOne, transaction } from "@/lib/db";
+import { execute, newId, query, queryOne } from "@/lib/db";
 import { errors } from "@/lib/http";
 import { integrations } from "@/lib/env";
 import { getSettings, type CampaignSettings, campaignWindow } from "@/lib/settings";
 import type { UserRow } from "@/lib/users";
-import { addPoints, getUserById, isBlocked, updateUser } from "@/lib/users";
+import { addPoints, getPoints, getUserById, isBlocked, updateUser } from "@/lib/users";
 import { recordAudit } from "@/lib/audit";
 import { getTaskBySlug, type TaskRow } from "@/lib/services/tasks";
 import { verifyXPost } from "@/lib/integrations/x";
@@ -150,6 +150,12 @@ export async function submitTask(input: SubmitInput): Promise<SubmissionRow> {
     if (check.state === "failed") {
       throw errors.badRequest(check.detail);
     }
+    if (check.state === "verified" && check.tweet?.author_username) {
+      // Bind the participant to the account that actually published the post.
+      const author = `@${check.tweet.author_username.replace(/^@/, "")}`;
+      if (!user.x_username) xHandleUpdate = author;
+      proofText = author;
+    }
     if (!handle && check.state !== "verified") {
       throw errors.badRequest(
         "Add your X username too, so the team can verify authorship manually.",
@@ -204,7 +210,9 @@ export async function submitTask(input: SubmitInput): Promise<SubmissionRow> {
   } catch (err) {
     const message = (err as Error).message ?? "";
     if (/unique|duplicate/i.test(message)) {
-      throw errors.conflict("That exact proof was already submitted.");
+      throw errors.conflict(
+        "You already have a submission awaiting review for this task, or that exact proof was already submitted.",
+      );
     }
     throw err;
   }
@@ -287,20 +295,25 @@ export async function reviewSubmission(input: ReviewInput): Promise<ReviewResult
     if (requested > task.points) {
       throw errors.badRequest(`Points cannot exceed the task weight (${task.points}).`);
     }
-    const currentPoints = Number(user.points_cached);
+    // Ledger (not the cached column) is the source of truth for the cap, so a
+    // stale cache or a parallel approval cannot over-award.
+    const currentPoints = await getPoints(user.id);
     const room = settings.maxPointsPerUser - currentPoints;
     if (room <= 0) {
       throw errors.conflict("This participant has already reached the campaign points cap.");
     }
     pointsAwarded = Math.min(Math.round(requested), room);
 
-    await transaction(async (q) => {
-      await q.run(
-        `UPDATE submissions SET status = 'approved', points_awarded = ?, reviewed_at = ?, reviewed_by = ?,
-          review_note = ?, updated_at = ? WHERE id = ? AND status = 'pending'`,
-        [pointsAwarded, ts, input.adminId, note, ts, submission.id],
-      );
-    });
+    // Atomic compare-and-set: exactly one concurrent reviewer can flip
+    // pending -> approved. The loser gets a 409 and credits nothing.
+    const flip = await execute(
+      `UPDATE submissions SET status = 'approved', points_awarded = ?, reviewed_at = ?, reviewed_by = ?,
+        review_note = ?, updated_at = ? WHERE id = ? AND status = 'pending'`,
+      [pointsAwarded, ts, input.adminId, note, ts, submission.id],
+    );
+    if (flip.changes !== 1) {
+      throw errors.conflict("This submission was already reviewed. Reload the queue.");
+    }
 
     await addPoints({
       userId: user.id,
@@ -328,6 +341,14 @@ export async function reviewSubmission(input: ReviewInput): Promise<ReviewResult
     if (submission.status === "paid") {
       throw errors.conflict("Paid submissions cannot be rejected.");
     }
+    const flip = await execute(
+      `UPDATE submissions SET status = 'rejected', points_awarded = 0, reviewed_at = ?, reviewed_by = ?,
+        review_note = ?, updated_at = ? WHERE id = ? AND status IN ('pending','approved')`,
+      [ts, input.adminId, note, ts, submission.id],
+    );
+    if (flip.changes !== 1) {
+      throw errors.conflict("This submission was already reviewed. Reload the queue.");
+    }
     if (submission.status === "approved") {
       await addPoints({
         userId: user.id,
@@ -337,15 +358,18 @@ export async function reviewSubmission(input: ReviewInput): Promise<ReviewResult
         createdBy: input.adminId,
       });
     }
-    await execute(
-      `UPDATE submissions SET status = 'rejected', points_awarded = 0, reviewed_at = ?, reviewed_by = ?,
-        review_note = ?, updated_at = ? WHERE id = ?`,
-      [ts, input.adminId, note, ts, submission.id],
-    );
   } else {
     // revoke: approved -> rejected, points removed
     if (submission.status !== "approved") {
       throw errors.conflict("Only approved submissions can be revoked.");
+    }
+    const flip = await execute(
+      `UPDATE submissions SET status = 'rejected', points_awarded = 0, reviewed_at = ?, reviewed_by = ?,
+        review_note = ?, updated_at = ? WHERE id = ? AND status = 'approved'`,
+      [ts, input.adminId, note ?? "Revoked by admin", ts, submission.id],
+    );
+    if (flip.changes !== 1) {
+      throw errors.conflict("Only approved submissions can be revoked. Reload the queue.");
     }
     await addPoints({
       userId: user.id,
@@ -354,11 +378,6 @@ export async function reviewSubmission(input: ReviewInput): Promise<ReviewResult
       submissionId: submission.id,
       createdBy: input.adminId,
     });
-    await execute(
-      `UPDATE submissions SET status = 'rejected', points_awarded = 0, reviewed_at = ?, reviewed_by = ?,
-        review_note = ?, updated_at = ? WHERE id = ?`,
-      [ts, input.adminId, note ?? "Revoked by admin", ts, submission.id],
-    );
   }
 
   await recordAudit({
@@ -395,13 +414,20 @@ export async function creditReferral(
   );
   if (Number(count?.c ?? 0) >= settings.maxReferralsPerUser) return false;
 
+  // Claim the referral atomically first: two simultaneous approvals for the same
+  // referee must credit the referrer exactly once.
+  const claim = await execute(
+    `UPDATE users SET referral_credited = 1 WHERE id = ? AND referral_credited = 0`,
+    [referee.id],
+  );
+  if (claim.changes !== 1) return false;
+
   await addPoints({
     userId: referrer.id,
     delta: settings.referralPoints,
     reason: "referral_credited",
     createdBy: actorId,
   });
-  await updateUser(referee.id, { referral_credited: 1 });
 
   await recordAudit({
     actorType: "system",
@@ -445,6 +471,43 @@ export async function ensureAutoClaim(args: {
     return { ...pending, verification_state: args.verificationState };
   }
 
+  // A previously rejected auto-claim must be re-openable once the participant
+  // satisfies the rule (e.g. they now hold enough OFFR for the required days).
+  const rejected = existing.find((s) => s.status === "rejected");
+  if (rejected) {
+    const reopened = await execute(
+      `UPDATE submissions SET status = 'pending', verification_state = ?, verification_detail = ?,
+        reviewed_at = NULL, reviewed_by = NULL, review_note = NULL, updated_at = ?
+       WHERE id = ? AND status = 'rejected'`,
+      [args.verificationState, truncate(args.verificationDetail, 400), now(), rejected.id],
+    );
+    if (reopened.changes === 1) {
+      await execute(
+        `INSERT INTO verifications (id, user_id, submission_id, kind, status, method, detail, checked_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          newId("ver"),
+          args.user.id,
+          rejected.id,
+          task.type,
+          "verified",
+          args.method,
+          truncate(args.verificationDetail, 400),
+          now(),
+        ],
+      );
+      await recordAudit({
+        actorType: "system",
+        actorId: null,
+        action: "submission.auto_reopened",
+        targetType: "submission",
+        targetId: rejected.id,
+        meta: { task: task.slug },
+      });
+      return queryOne<SubmissionRow>(`SELECT * FROM submissions WHERE id = ?`, [rejected.id]);
+    }
+  }
+
   const ts = now();
   const id = newId("sub");
   try {
@@ -466,7 +529,22 @@ export async function ensureAutoClaim(args: {
     );
   } catch (err) {
     const message = (err as Error).message ?? "";
-    if (/unique|duplicate/i.test(message)) return null;
+    if (/unique|duplicate/i.test(message)) {
+      // Lost a race with another verifier: re-open that row if it was rejected.
+      const clash = await queryOne<SubmissionRow>(
+        `SELECT * FROM submissions WHERE task_id = ? AND content_hash = ?`,
+        [task.id, args.contentHash],
+      );
+      if (clash?.status === "rejected") {
+        await execute(
+          `UPDATE submissions SET status = 'pending', verification_state = ?, verification_detail = ?,
+            reviewed_at = NULL, reviewed_by = NULL, updated_at = ? WHERE id = ? AND status = 'rejected'`,
+          [args.verificationState, truncate(args.verificationDetail, 400), now(), clash.id],
+        );
+        return queryOne<SubmissionRow>(`SELECT * FROM submissions WHERE id = ?`, [clash.id]);
+      }
+      return null;
+    }
     throw err;
   }
 

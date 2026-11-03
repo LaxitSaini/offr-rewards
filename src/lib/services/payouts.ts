@@ -2,10 +2,11 @@ import { execute, newId, query, queryOne } from "@/lib/db";
 import { getChain, ERC20_TRANSFER_TOPIC } from "@/lib/chain";
 import { CHAIN_ID, TOKEN_ADDRESS } from "@/lib/constants";
 import { env } from "@/lib/env";
-import { errors } from "@/lib/http";
+import { ApiError, errors } from "@/lib/http";
 import { getSettings } from "@/lib/settings";
 import { recordAudit } from "@/lib/audit";
 import { decimalCmp, subDecimal, addDecimal } from "@/lib/services/rewards";
+import { holdStatusFor } from "@/lib/services/holdings";
 import { getUserById, isBlocked, type UserRow } from "@/lib/users";
 import { isTxHash, now, parseAmount, truncate } from "@/lib/utils";
 import { trimDecimal } from "@/lib/format";
@@ -120,6 +121,8 @@ export interface RecordPayoutInput {
   note?: string | null;
   adminId: string;
   ip?: string | null;
+  /** Explicit, audited override of the campaign holding requirement. */
+  overrideHoldRequirement?: boolean;
 }
 
 export async function recordPayout(input: RecordPayoutInput): Promise<PayoutRow> {
@@ -152,13 +155,53 @@ export async function recordPayout(input: RecordPayoutInput): Promise<PayoutRow>
     throw errors.badRequest("That is not a valid Base transaction hash (0x + 64 hex characters).");
   }
 
+  // Token decimals must come from the chain. Assuming 18 could mis-scale the
+  // recorded amount (and therefore what a transaction is allowed to prove), so
+  // this fails closed instead of guessing.
   const chain = getChain();
-  const meta = await chain.getTokenMeta().catch(() => ({ decimals: 18 }));
+  let meta: { decimals: number; source: string };
+  try {
+    meta = await chain.getTokenMeta();
+  } catch {
+    if (env.chainMode === "live") {
+      throw new ApiError(
+        503,
+        "chain_unavailable",
+        "Could not read the OFFR token metadata from Base, so a payout cannot be recorded safely. Retry when the RPC is reachable.",
+      );
+    }
+    meta = { decimals: env.tokenDecimalsOverride ?? 18, source: "fallback" };
+  }
+
+  if (
+    txHash &&
+    env.chainMode !== "mock" &&
+    meta.source !== "onchain" &&
+    env.tokenDecimalsOverride === undefined
+  ) {
+    throw new ApiError(
+      503,
+      "chain_unavailable",
+      "Token decimals could not be read from Base, so a transaction hash cannot be verified. Record the payout without a hash and verify later.",
+    );
+  }
+
   let amountRaw = 0n;
   try {
     amountRaw = parseAmount(amount, meta.decimals);
   } catch {
     throw errors.badRequest("Amount has too many decimal places for this token.");
+  }
+
+  // Campaign-level holding gate (configurable). An explicit override is allowed
+  // but recorded in the audit log.
+  if (settings.requireHoldForReward && !input.overrideHoldRequirement) {
+    const hold = await holdStatusFor(user, settings);
+    if (!hold.meetsRequirement) {
+      throw errors.badRequest(
+        `This campaign requires a verified OFFR holding before payout (${hold.holdDays}/${hold.requiredDays} days, balance ${hold.balanceOffr}). Use the override only with documented approval.`,
+      );
+    }
   }
 
   let status: PayoutRow["status"] = "recorded";
@@ -176,10 +219,19 @@ export async function recordPayout(input: RecordPayoutInput): Promise<PayoutRow>
 
   const id = newId("pay");
   try {
-    await execute(
+    // Single-statement atomic gate: the row is only inserted if the campaign
+    // budget and the per-participant cap still hold at insert time. Two admins
+    // paying simultaneously cannot overspend the budget.
+    const inserted = await execute(
       `INSERT INTO payouts (id, user_id, amount, amount_raw, tx_hash, status, chain_id, note,
         verification_detail, verified_at, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+       WHERE (SELECT COALESCE(SUM(CAST(amount AS DECIMAL(30,6))), 0) FROM payouts
+                WHERE status IN ('recorded','verified'))
+             + CAST(? AS DECIMAL(30,6)) <= CAST(? AS DECIMAL(30,6))
+         AND (SELECT COALESCE(SUM(CAST(amount AS DECIMAL(30,6))), 0) FROM payouts
+                WHERE user_id = ? AND status IN ('recorded','verified'))
+             + CAST(? AS DECIMAL(30,6)) <= CAST(? AS DECIMAL(30,6))`,
       [
         id,
         user.id,
@@ -193,9 +245,28 @@ export async function recordPayout(input: RecordPayoutInput): Promise<PayoutRow>
         verifiedAt,
         input.adminId,
         now(),
+        amount,
+        settings.budgetOffr,
+        user.id,
+        amount,
+        settings.maxRewardPerUserOffr,
       ],
     );
+
+    if (inserted.changes !== 1) {
+      const [total, userTotal] = await Promise.all([totalPaidOffr(), paidToUser(user.id)]);
+      const wouldBeTotal = addDecimal(total, amount);
+      if (decimalCmp(wouldBeTotal, settings.budgetOffr) > 0) {
+        throw errors.badRequest(
+          `This payout would exceed the campaign budget of ${settings.budgetOffr} OFFR (already committed: ${total}, this payout would make ${wouldBeTotal}).`,
+        );
+      }
+      throw errors.badRequest(
+        `This payout would exceed the per-participant cap of ${settings.maxRewardPerUserOffr} OFFR (already paid: ${userTotal}).`,
+      );
+    }
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     if (/unique|duplicate/i.test((err as Error).message ?? "")) {
       throw errors.conflict("That transaction hash has already been recorded.");
     }
@@ -212,7 +283,13 @@ export async function recordPayout(input: RecordPayoutInput): Promise<PayoutRow>
     action: "payout.recorded",
     targetType: "payout",
     targetId: id,
-    meta: { user: user.wallet, amount, txHash, status },
+    meta: {
+      user: user.wallet,
+      amount,
+      txHash,
+      status,
+      holdOverride: input.overrideHoldRequirement ? true : undefined,
+    },
     ip: input.ip ?? null,
   });
 

@@ -12,6 +12,7 @@ const createSchema = z.object({
   amount: z.string().regex(/^\d+(\.\d+)?$/, "Use a decimal OFFR amount"),
   txHash: z.string().max(80).optional().nullable(),
   note: z.string().max(500).optional().nullable(),
+  overrideHoldRequirement: z.boolean().optional(),
 });
 
 export const GET = route(async (req: Request) => {
@@ -60,6 +61,7 @@ export const POST = route(async (req: Request) => {
     note: body.note ?? null,
     adminId: admin.id,
     ip: getClientIp(req),
+    overrideHoldRequirement: body.overrideHoldRequirement === true,
   });
 
   if (!payout) throw errors.server("Payout could not be recorded.");
