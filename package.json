@@ -2,7 +2,7 @@
   "name": "offr-rewards",
   "version": "1.0.0",
   "private": true,
-  "description": "OFFR Rewards \u2014 Web3 community rewards campaign platform for $OFFR (Base Mainnet)",
+  "description": "OFFR Rewards — Web3 community rewards campaign platform for $OFFR (Base Mainnet)",
   "engines": {
     "node": ">=20.11"
   },
@@ -30,6 +30,7 @@
     "better-sqlite3": "^13.0.3"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",

@@ -106,9 +106,15 @@ async function main() {
 
   // Local convenience: clear the rate-limit windows so reruns are repeatable.
   try {
-    await execute(`DELETE FROM rate_limits`);
+    const cleared = await execute(`DELETE FROM rate_limits`);
+    if (cleared.changes === 0) {
+      const path = process.env.SQLITE_PATH ?? "./data/offr.db";
+      console.log(
+        `  ⚠️  cleared 0 rate-limit rows from ${path} — if the server uses another database, export SQLITE_PATH to match.\n`,
+      );
+    }
   } catch {
-    /* remote server — ignore */
+    /* remote server / no local DB — ignore */
   }
 
   const health = await new Session().call("/api/health");
