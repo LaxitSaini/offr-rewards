@@ -10,8 +10,8 @@ The app is a standard Next.js 15 application with one Node process. Two supporte
 ### Which shape should you pick?
 
 **Recommended for the first launch: Shape B (Railway/Render/Fly + SQLite on a volume).**
-It is the path whose engine is actually covered by the test evidence: the 80 unit/integration tests and
-the 62-assertion HTTP suite all run against SQLite, so a launch on Shape B has no unexercised storage
+It is the path whose engine is actually covered by the test evidence: the 98 unit/integration tests and
+the 83-assertion HTTP suite all run against SQLite, so a launch on Shape B has no unexercised storage
 layer. It is also the cheapest, and a 10–20 day campaign on one instance fits it comfortably.
 
 **Shape A (Vercel + Neon) is fully implemented and is the better long-term choice** if you need
@@ -40,8 +40,8 @@ You need three free accounts: **GitHub**, **Vercel**, **Neon** (Postgres). Use C
 phone; all three dashboards are usable at phone width, and the "desktop site" toggle helps for
 Neon's SQL editor if you need it.
 
-1. **Get the code onto GitHub** — the branch is already pushed (`arena/7173aefe-offr-rewards`, PR #1).
-   Merge it into `main` only after the review items in `docs/SECURITY.md` are accepted.
+1. **Get the code onto GitHub** — the repository already has `main`. Deploy from `main`; any pending
+   fix branch must be reviewed and merged first (see the pull request's verification report).
 2. **Create the database (Neon, ~3 minutes)**
    - neon.com → *New Project* → region closest to your users (e.g. `aws-eu-central-1`).
    - Copy the **pooled** connection string (it contains `-pooler`). It looks like
@@ -154,11 +154,64 @@ Notes:
 - Route handlers run on the Node runtime and are marked dynamic — no static caching of user data.
 - `serverExternalPackages` in `next.config.ts` keeps `postgres` out of the bundler.
 
-### Railway / Render / Fly
-1. Build: `npm ci && npm run build`
-2. Start: `npm run start` (binds `0.0.0.0:$PORT`)
-3. Release command: `npm run db:migrate`
-4. Attach a volume and set `SQLITE_PATH` if you are not using Postgres.
+### Render (recommended Shape B — exact settings)
+
+`render.yaml` in the repository root is a Blueprint with these values already filled in. In the Render
+dashboard: **New → Blueprint → select this repo → Apply**. Render prompts for every `sync: false` secret
+once; it stores them encrypted and never shows them again.
+
+| Render field | Exact value | Why |
+| --- | --- | --- |
+| Service type | **Web Service**, runtime **Node** | Next.js needs a persistent process |
+| Repository / branch | your repo / `main` | `main` is the reviewed branch |
+| Root directory | *(empty — repository root)* | `package.json` is at the root |
+| Instance type | **Starter or larger** | a persistent disk is not available on Free |
+| Region | any single region (e.g. Oregon) | keep it near your RPC/audience |
+| Build command | `npm ci --include=optional && npm run build` | `--include=optional` is **required**; without it npm skips `better-sqlite3` and every page returns 500 |
+| Start command | `npm start` | runs `next start -H 0.0.0.0 -p $PORT` |
+| Health check path | `/api/health` | returns `200` only when the database answers, `503` otherwise |
+| Disk | name `offr-data`, mount path **`/var/data`**, **1 GB** | SQLite file lives here, not in the ephemeral container |
+| Env: `SQLITE_PATH` | `/var/data/offr.db` | must match the mount path |
+| Env: `CHAIN_MODE` | `live` | `mock` is refused at boot in production |
+| Env: `NEXT_PUBLIC_APP_URL` | `https://<your-domain>` | session cookies are `Secure` in production |
+| Env: `NODE_VERSION` | `22.14.0` (>= 20.11 required) | `engines` in `package.json` |
+
+Secrets that must be set in **Render → Environment** (never in git, never in this repo):
+`BASE_RPC_URL` (optional, defaults to `https://mainnet.base.org`), `TELEGRAM_BOT_TOKEN`,
+`TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET` (`generateValue` in the Blueprint), `X_BEARER_TOKEN`,
+`TEAM_WALLET_ADDRESS`, `ADMIN_EMAIL` + `ADMIN_PASSWORD` (bootstrap only — delete both after the first
+login), and `TOKEN_DECIMALS` **left empty** so decimals are read from the contract.
+
+**Migrations.** `src/lib/db/index.ts` applies every migration on first database access, so the first
+health check after a deploy creates/updates the schema. To run them explicitly from the Render Shell:
+`npm run db:migrate` (idempotent; safe to repeat).
+
+**Persistence check after the first deploy.** In the Render Shell:
+
+```bash
+ls -l /var/data/offr.db            # the database must live on the mount
+npm run db:backup                  # writes /var/data/backups/offr-<timestamp>.db + integrity check
+```
+
+Then trigger **Manual Deploy → Restart** and confirm `/api/health` still returns `ok:true` and your
+admin login still works: both prove the disk survived the restart (the session row is in the database).
+If `/var/data/offr.db` is missing after a restart, the disk is not mounted at `/var/data` — stop and fix
+that before inviting anyone.
+
+**Backup and recovery.**
+- Automated: enable your host's disk snapshot/scheduled-job feature and run `npm run db:backup` daily
+  (Render → Cron Job, or the Shell while the campaign runs). The script verifies `PRAGMA integrity_check`
+  on every copy and keeps the newest `KEEP` files (default 14).
+- Manual restore: stop the service, copy a verified backup over the live file
+  (`cp /var/data/backups/offr-<ts>.db /var/data/offr.db`), start the service, then check `/api/health`
+  and the overview counts. Restore drills are covered in section 6.
+- Postgres deployments: use the provider's PITR/snapshot feature; `npm run db:backup` refuses and says so.
+
+### Railway / Fly / VM
+1. Build: `npm ci --include=optional && npm run build`
+2. Start: `npm start` (binds `0.0.0.0:$PORT`)
+3. Migration: applied automatically on first request; `npm run db:migrate` to run it explicitly.
+4. Attach a volume and set `SQLITE_PATH` to a path **on** that volume if you are not using Postgres.
 5. `TRUST_PROXY` is detected automatically on Railway/Render/Fly; set `TRUST_PROXY=1` explicitly for any other reverse proxy.
 
 ---
@@ -247,7 +300,10 @@ configured chat; `getChatMember` then fails and the app queues the claim for man
 
 - Postgres (Neon): enable point-in-time restore on the project; take a manual snapshot before the first
   payout batch.
-- SQLite: nightly `cp /data/offr.db /data/backups/offr-$(date +%F).db` from a release command.
+- SQLite: `npm run db:backup` (online backup + `PRAGMA integrity_check` + retention pruning) writes
+  `<db dir>/backups/offr-<timestamp>.db`. Schedule it daily on the host, and copy the file off the host
+  (object storage, or download it from the Render Shell) — a volume snapshot protects against a bad
+  deploy, an off-host copy protects against losing the volume.
 
 ---
 
@@ -258,15 +314,16 @@ The browser steps above are sufficient. If you prefer a terminal on Android, the
 ```bash
 pkg install nodejs git curl            # Termux
 git clone https://github.com/LaxitSaini/offr-rewards && cd offr-rewards
-npm ci
-npm run typecheck && npm test          # 79 tests
+npm ci --include=optional
+npm run typecheck && npm test          # 98 tests
 npm run build
 curl -s https://rewards.example.com/api/health
 curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 ```
 
 `npx tsx scripts/e2e.ts` needs a running server; run it against a mock-mode local instance only, never
-against the production deployment.
+against the production deployment. `node scripts/ui-audit.mjs` renders every route server-side and
+reports contrast, heading, landmark, label and tap-target problems; it needs the same local instance.
 
 ---
 

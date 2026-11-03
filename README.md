@@ -63,6 +63,7 @@ Next.js route handlers (Node runtime)
 npm install --include=optional      # optional deps include the SQLite driver
 cp .env.example .env.local          # fill in values, see below
 npm run check:db                    # verifies the driver + applies migrations
+npm run db:backup                   # verified SQLite backup + retention (see docs/DEPLOYMENT.md §8)
 npm run db:migrate                  # creates the schema + seeds campaign tasks/settings
 npm run dev                         # http://localhost:3000
 ```
@@ -196,8 +197,10 @@ real credentials (see `docs/DEPLOYMENT.md` → launch checklist).
 
 ## 7. Deployment
 
-See **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)** for Vercel + Neon, Railway/Render with a persistent disk,
-environment setup, migration steps, Telegram webhook registration and the go-live checklist.
+The recommended shape is **one Render web service + SQLite on a persistent disk**. [`render.yaml`](./render.yaml)
+is a ready Blueprint (build, start, disk, health check and every env var); the exact field-by-field table,
+plus backup and restore drills, is in **[docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md)**. A Vercel + Neon
+(Postgres) shape is also implemented and documented there.
 
 Security model and threat notes: **[docs/SECURITY.md](./docs/SECURITY.md)**.
 
